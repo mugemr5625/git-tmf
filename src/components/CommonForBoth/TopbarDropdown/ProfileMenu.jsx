@@ -121,7 +121,7 @@ function ProfileMenu(props) {
                     fontWeight: '500',
                     marginTop: '2px'
                   }}>
-                    Selected: {selectedBranch}
+                   {selectedBranch}
                   </div>
                 )}
               </div>
