@@ -60,6 +60,7 @@ const ListBranch = () => {
     localStorage.setItem("selected_branch_name", name);
     setSelectedBranchName(name);
     setBranchModalVisible(false);
+    window.location.reload();
   };
 
   const handleCancelBranchModal = () => {
