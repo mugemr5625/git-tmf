@@ -34,7 +34,7 @@ import Viewuser from 'pages/Users/ViewUser';
 import InvestmentList from 'pages/Organization/Investments/InvestmentList';
 
 //Reset module 
-import ResetPassword from 'pages/ResetPassword/ResetPassword';
+import ResetPassword from '../pages/ResetPassword/ResetPassword';
 
 
 const authProtectedRoutes = [
