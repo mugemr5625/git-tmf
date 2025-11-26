@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react"; 
 import { useNavigate } from "react-router-dom";
-import { Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, Badge, Divider, Skeleton } from "antd";
+// ADDED Select to imports
+import { Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, Badge, Divider, Skeleton, Select } from "antd"; 
 import Table from "../../../components/Common/Table";
 import { GET, DELETE, POST } from "helpers/api_helper";
 import { AREA, COLUMNCHANGE, SELECTEDCOLUMN } from "helpers/url_helper";
 import Loader from "components/Common/Loader";
 import SwipeablePanel from "components/Common/SwipeablePanel";
-import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import AreaCollapseContent from "components/Common/AreaCollapseContent";
 import { Switch, FloatButton } from "antd";
-import reorderIcon from "../../../assets/up-and-down-arrow.png";
-import areaIcon from '../../../assets/residential-area.png';
+import reorderIcon from "../../../assets/icons/up-and-down-arrow.png";
+import areaIcon from '../../../assets/icons/residential-area.png';
 import InfiniteScroll from "react-infinite-scroll-component";
 import lineIcon from "../../../assets/images/location.png";
+import "./ViewArea.css";
 
 let header = [
   {
@@ -61,11 +63,27 @@ const ViewArea = () => {
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [selectedBranchFromStorage, setSelectedBranchFromStorage] = useState(null);
   const [areasPagination, setAreasPagination] = useState({});
+  const [lineSelectionModalVisible, setLineSelectionModalVisible] = useState(false); 
+  // NEW STATE: To hold the currently selected line name in the dropdown before confirmation
+  const [tempSelectedLine, setTempSelectedLine] = useState(null); 
   const AREAS_PAGE_SIZE = 10;
 
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
   const isMobile = !screens.md;
+
+  // Use useMemo to calculate unique lines from originalData (Updated for Select component)
+  const uniqueLines = useMemo(() => {
+    const storedBranchName = localStorage.getItem("selected_branch_name");
+    const filteredData = originalData.filter(
+      (item) => item.branch_name === storedBranchName
+    );
+    const lines = new Set(filteredData.map((item) => item.line_name));
+    return Array.from(lines).sort().map(lineName => ({
+        label: lineName,
+        value: lineName
+    }));
+  }, [originalData]);
 
   useEffect(() => {
     const storedBranchName = localStorage.getItem("selected_branch_name");
@@ -120,7 +138,7 @@ const ViewArea = () => {
 
   const handleReset = () => {
     const grouped = groupAreasByLine(originalData);
-    
+
     const newPagination = {};
     Object.keys(grouped).forEach(lineName => {
       newPagination[lineName] = {
@@ -128,15 +146,15 @@ const ViewArea = () => {
         total: grouped[lineName].length
       };
     });
-    
+
     setTableData(originalData);
     setGroupedData(grouped);
     setAreasPagination(newPagination);
-    
+
     setShowReset(false);
     setSelectedLine(null);
     setSearchText("");
-    
+
     notification.success({
       message: "Data Reset",
       description: "Restored to the original view successfully.",
@@ -145,32 +163,51 @@ const ViewArea = () => {
 
   const SumbitReorder = async () => {
     try {
+      if (!selectedLine) {
+        notification.error({
+          message: "Error",
+          description: "No line selected for reordering.",
+        });
+        return;
+      }
+
       setReorderLoader(true);
-      const reorderedData =
-        Object.keys(order)?.length > 0 ? sortData(order) : tableData;
-      const response = await POST(`${AREA}reorder/`, reorderedData);
+
+      // Filter to include only the reordered items for the selected line
+      const reorderedData = Object.keys(order)?.length > 0 ? sortData(order) : tableData;
+      
+      // Get the original list of areas for the selected line (before current reorder operation)
+      const lineOriginalAreas = originalData.filter(item => item.line_name === selectedLine);
+      const lineOriginalAreaIds = new Set(lineOriginalAreas.map(item => item.id));
+      
+      // Separate the reordered list into the selected line's areas and others
+      const reorderedLineAreas = reorderedData.filter(item => lineOriginalAreaIds.has(item.id));
+      
+      // Prepare data for the API (only sending the reordered areas in their new sequence)
+      const apiPayload = reorderedLineAreas.map((item, index) => ({
+        ...item,
+        order: index + 1, // Recalculate order based on new sequence
+      }));
+
+      const response = await POST(`${AREA}reorder/`, apiPayload);
+      
       if (response?.status === 200) {
+        
+        // Update originalData: replace the selected line's old areas with the reordered sequence
+        const updatedOriginalData = originalData.filter(item => item.line_name !== selectedLine);
+        const finalOriginalData = [...updatedOriginalData, ...reorderedLineAreas];
+        
+        // Re-filter and group based on the stored branch
         const storedBranchName = localStorage.getItem("selected_branch_name");
-        
-        const reorderedIds = new Set(reorderedData.map(item => item.id));
-        
-        const updatedOriginalData = [
-          ...originalData.filter(item => !reorderedIds.has(item.id)),
-          ...reorderedData
-        ];
-        
-        let finalData = updatedOriginalData;
-        if (storedBranchName) {
-          finalData = updatedOriginalData.filter(
-            (item) => item.branch_name === storedBranchName
-          );
-        }
-        
-        setOriginalData(updatedOriginalData);
+        let finalData = finalOriginalData.filter(
+          (item) => item.branch_name === storedBranchName
+        );
+
+        setOriginalData(finalOriginalData);
         setTableData(finalData);
         const grouped = groupAreasByLine(finalData);
         setGroupedData(grouped);
-        
+
         const newPagination = {};
         Object.keys(grouped).forEach(lineName => {
           newPagination[lineName] = {
@@ -179,7 +216,7 @@ const ViewArea = () => {
           };
         });
         setAreasPagination(newPagination);
-        
+
         setReorder(false);
         setRowReorderred(false);
         const filtered = header.filter(
@@ -191,10 +228,11 @@ const ViewArea = () => {
         setShowReset(false);
         setSearchText("");
         setIsDragMode(false);
-        
+        setTempSelectedLine(null); // Reset temp selection
+
         notification.success({
           message: "Re-Ordered",
-          description: "The order has been updated successfully.",
+          description: `The order for line "${selectedLine}" has been updated successfully.`,
           duration: 0,
         });
       } else {
@@ -214,9 +252,51 @@ const ViewArea = () => {
     }
   };
 
+  // Function to handle Line selection and start reorder mode
+  const handleLineSelectionForReorder = (lineName) => {
+    
+    // Filter data for the selected line only
+    const storedBranchName = localStorage.getItem("selected_branch_name");
+    const filteredData = originalData.filter(
+      (item) => item.branch_name === storedBranchName && item.line_name === lineName
+    );
+
+    if (filteredData.length === 0) {
+      notification.warning({
+        message: "No Areas Found",
+        description: `No areas available for line "${lineName}".`,
+      });
+      setSelectedLine(null);
+      setLineSelectionModalVisible(false); // Close modal on failure too
+      setTempSelectedLine(null);
+      return;
+    }
+    
+    // Set up reorder view states
+    setSelectedLine(lineName);
+    setTableData(filteredData);
+
+    setTableHeader((prev) => {
+      // Ensure "Move" and "Order" headers are present exactly once
+      const baseHeaders = prev.filter(item => !["move", "order"].includes(item.value));
+      return [
+        { label: "Move", value: "move" },
+        { label: "Order", value: "order" },
+        ...baseHeaders,
+      ];
+    });
+
+    setReorder(true);
+    setShowReset(false);
+    setSearchText("");
+    setIsDragMode(false); 
+    setOrder({});
+    setLineSelectionModalVisible(false); // Close modal
+  };
+
   const clickReorder = () => {
     const storedBranchName = localStorage.getItem("selected_branch_name");
-    
+
     if (!storedBranchName) {
       notification.warning({
         message: "No Branch Selected",
@@ -236,42 +316,82 @@ const ViewArea = () => {
       });
       return;
     }
-
-    setShowReset(false);
-    setSearchText("");
-
-     const firstLineName = filteredData[0]?.line_name || storedBranchName;
-    setSelectedLine(firstLineName);
-    setTableData(filteredData);
     
-    setTableHeader((prev) => {
-      return [
-        { label: "Move", value: "move" },
-        { label: "Order", value: "order" },
-        ...prev,
-      ];
-    });
+    // Check for unique lines in the filtered data (using uniqueLines memoized value)
+    const lines = uniqueLines.map(line => line.value);
     
-    setReorder(true);
+    if (lines.length > 1) {
+        // More than one line, show selection modal
+        setLineSelectionModalVisible(true);
+        setTempSelectedLine(null); // Clear previous selection
+    } else if (lines.length === 1) {
+        // Only one line, proceed directly
+        handleLineSelectionForReorder(lines[0]);
+    } else {
+         notification.warning({
+            message: "No Lines Found",
+            description: `No lines available for the current branch.`,
+          });
+    }
   };
+  
+  // Existing functions...
 
+  const handleCancel = () => {
+    const filtered = header.filter(
+      (item) => !["move", "order"].includes(item.value)
+    );
+    setIsDragMode(false);
+    setTableHeader(filtered);
+    setReorder(false);
+    setSelectedLine(null);
+    setTempSelectedLine(null); // Reset temp selection for the modal
+
+    const storedBranchName = localStorage.getItem("selected_branch_name");
+    if (storedBranchName) {
+      const filteredData = originalData.filter(
+        (item) => item.branch_name === storedBranchName
+      );
+      setTableData(filteredData);
+      const grouped = groupAreasByLine(filteredData);
+      setGroupedData(grouped);
+
+      Object.keys(grouped).forEach(lineName => {
+        initializeLinePagination(lineName, grouped[lineName].length);
+      });
+    } else {
+      setTableData(originalData);
+      setGroupedData(groupAreasByLine(originalData));
+    }
+
+    setSearchText("");
+    setShowReset(false);
+  };
+  
   const getAreaList = async () => {
     try {
       setTableLoader(true);
       const response = await GET(AREA);
       if (response?.status === 200) {
         const storedBranchName = localStorage.getItem("selected_branch_name");
-        
+
         let filteredData = response.data;
         if (storedBranchName) {
           filteredData = response.data.filter(
             (item) => item.branch_name === storedBranchName
           );
         }
-        
+
         setTableData(filteredData);
-        setOriginalData(filteredData);
-        const grouped = groupAreasByLine(filteredData);
+        setOriginalData(response.data); // Store ALL data in originalData
+        
+        // Re-filter data based on storedBranchName for initial display
+        const displayData = storedBranchName ? response.data.filter(
+            (item) => item.branch_name === storedBranchName
+          ) : response.data;
+          
+        setTableData(displayData);
+        const grouped = groupAreasByLine(displayData);
         setGroupedData(grouped);
 
         Object.keys(grouped).forEach(lineName => {
@@ -284,7 +404,7 @@ const ViewArea = () => {
           uniqueOptions[col] = new Set();
         });
 
-        filteredData.forEach((item) => {
+        displayData.forEach((item) => {
           filterCol.forEach((col) => {
             uniqueOptions[col].add(item[col]);
           });
@@ -299,9 +419,9 @@ const ViewArea = () => {
             })),
           }));
         });
-        
+
         if (storedBranchName) {
-          const uniqueLines = [...new Set(filteredData.map((item) => item.line_name))];
+          const uniqueLines = [...new Set(displayData.map((item) => item.line_name))];
           setExpandedLines(uniqueLines);
         }
       } else {
@@ -317,7 +437,7 @@ const ViewArea = () => {
       setTableLoader(false);
     }
   };
-
+  
   const initializeLinePagination = (lineName, totalAreas) => {
     setAreasPagination(prev => ({
       ...prev,
@@ -350,36 +470,6 @@ const ViewArea = () => {
   const handleDragEnd = (data) => {
     setTableData(data);
     setRowReorderred(true);
-  };
-
-  const handleCancel = () => {
-    const filtered = header.filter(
-      (item) => !["move", "order"].includes(item.value)
-    );
-    setIsDragMode(false);
-    setTableHeader(filtered);
-    setReorder(false);
-    setSelectedLine(null);
-    
-    const storedBranchName = localStorage.getItem("selected_branch_name");
-    if (storedBranchName) {
-      const filteredData = originalData.filter(
-        (item) => item.branch_name === storedBranchName
-      );
-      setTableData(filteredData);
-      const grouped = groupAreasByLine(filteredData);
-      setGroupedData(grouped);
-      
-      Object.keys(grouped).forEach(lineName => {
-        initializeLinePagination(lineName, grouped[lineName].length);
-      });
-    } else {
-      setTableData(originalData);
-      setGroupedData(groupAreasByLine(originalData));
-    }
-    
-    setSearchText("");
-    setShowReset(false);
   };
 
   const onDelete = async (record) => {
@@ -448,20 +538,20 @@ const ViewArea = () => {
       const newState = {
         [key]: !prev[key]
       };
-      
+
       if (newState[key]) {
         setTimeout(() => {
           const element = document.getElementById(`area-item-${areaId}`);
           if (element) {
-            element.scrollIntoView({ 
-              behavior: 'smooth', 
+            element.scrollIntoView({
+              behavior: 'smooth',
               block: 'center',
               inline: 'nearest'
             });
           }
         }, 100);
       }
-      
+
       return newState;
     });
   };
@@ -481,11 +571,11 @@ const ViewArea = () => {
       setTableData(originalData);
       const grouped = groupAreasByLine(originalData);
       setGroupedData(grouped);
-      
+
       Object.keys(grouped).forEach(lineName => {
         initializeLinePagination(lineName, grouped[lineName].length);
       });
-      
+
       setSearchModalVisible(false);
       setShowReset(false);
       notification.info({
@@ -497,19 +587,17 @@ const ViewArea = () => {
 
     const filtered = originalData.filter((item) => {
       const areaName = (item.areaName || "").toLowerCase();
-      // const lineName = (item.line_name || "").toLowerCase();
-
       return areaName.includes(query)
     });
 
     setTableData(filtered);
     const grouped = groupAreasByLine(filtered);
     setGroupedData(grouped);
-    
+
     Object.keys(grouped).forEach(lineName => {
       initializeLinePagination(lineName, grouped[lineName].length);
     });
-    
+
     setSearchModalVisible(false);
     setShowReset(true);
 
@@ -528,61 +616,97 @@ const ViewArea = () => {
 
   const searchModal = (
     <Modal
-      title={<div style={{ textAlign: "center", width: "100%" }}>Search Area</div>}
+      title={<div className="view-area-search-modal-title">Search Area</div>}
       open={searchModalVisible}
       onOk={handleSearch}
       onCancel={() => setSearchModalVisible(false)}
       okText="Search"
     >
-      <p style={{ marginBottom: 10, fontWeight: 500 }}>Area Name</p>
+      <p className="view-area-search-modal-label">Area Name</p>
       <input
         type="text"
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         placeholder="Enter area name to search"
-        style={{
-          width: "100%",
-          padding: "8px 10px",
-          borderRadius: "6px",
-          border: "1px solid #d9d9d9",
-          outline: "none",
-        }}
+        className="view-area-search-input"
       />
     </Modal>
+  );
+
+  // New Modal for Line Selection (Updated to use Select and centering)
+  const lineSelectionModal = (
+      <Modal
+          title={
+              <div 
+                  style={{
+                      textAlign: 'center', 
+                      // padding: '10px 0', 
+                      // fontSize: '18px',
+                      // fontWeight: '600'
+                  }}
+              >
+                  Select Line
+              </div>
+          }
+          open={lineSelectionModalVisible}
+          onCancel={() => setLineSelectionModalVisible(false)}
+          footer={[
+            <Button key="back" onClick={() => {
+                setTempSelectedLine(null); // Clear selection on cancel
+                setLineSelectionModalVisible(false);
+            }}>
+              Cancel
+            </Button>,
+            <Button 
+              key="submit" 
+              type="primary" 
+              disabled={!tempSelectedLine} 
+              onClick={() => handleLineSelectionForReorder(tempSelectedLine)}
+            >
+              Reorder
+            </Button>,
+          ]}
+           // Ensures the modal is centered
+      >
+        <div style={{ marginBottom: '15x' }}>
+            <label htmlFor="line-select" style={{ fontWeight: '400', display: 'block', marginBottom: '5px' }}>
+                Select Line Name
+            </label>
+            <Select
+                id="line-select"
+                placeholder="Select a line"
+                style={{ width: '100%' }}
+                onChange={setTempSelectedLine}
+                value={tempSelectedLine}
+                options={uniqueLines} // Uses the array of { label, value }
+                // size="medium"
+            />
+        </div>
+      </Modal>
   );
 
   const handleEditArea = (area) => navigate(`/area/edit/${area.id}`);
 
   return (
-    <div className="page-content" style={{ padding: 0, margin: "0px 0px " }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginTop: 0,
-          marginLeft: 0,
-          padding: 0,
-          marginBottom: "10px",
-        }}
-      >
+    <div className="view-area-page-content">
+      <div className="view-area-header-container">
         {reOrder ? (
           <div>
-            <h2 style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}>
-              Reorder Areas
+            <h2 className="view-area-title">
+              Reorder Area
             </h2>
-            <div style={{ fontSize: "14px", color: "#8c8c8c", marginTop: "4px" }}>
-              Selected Line: <span style={{ color: "#1677ff", fontWeight: 500 }}>{selectedLine}</span>
+            <div className="view-area-reorder-info">
+              Selected Line: <span className="view-area-line-name">{selectedLine}</span>
             </div>
           </div>
         ) : (
-          <h2 style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}>All Areas</h2>
+          <h2 className="view-area-title">Area List</h2>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="view-area-actions">
           {reOrder ? (
             <>
-              <span style={{ fontSize: "14px", fontWeight: 500, color: "#595959" }}>Slide</span>
+              <span className="view-area-switch-label">Slide</span>
               <Switch
                 checked={isDragMode}
                 onChange={(checked) => setIsDragMode(checked)}
@@ -592,18 +716,13 @@ const ViewArea = () => {
             <>
               <Button
                 onClick={clickReorder}
-                disabled={reOrder}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  width: "32px",
-                }}
+                disabled={reOrder || tableLoader}
+                className="view-area-reorder-button"
               >
                 <img
                   src={reorderIcon}
                   alt="Reorder Icon"
-                  style={{ width: "16px", height: "16px" }}
+                  className="view-area-reorder-icon"
                 />
               </Button>
               {showReset && (
@@ -625,6 +744,7 @@ const ViewArea = () => {
         </div>
       </div>
       {searchModal}
+      {lineSelectionModal} {/* Render the new line selection modal */}
 
       {tableLoader && <Loader />}
 
@@ -655,12 +775,12 @@ const ViewArea = () => {
             name="area"
           />
 
-          <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+          <div className="view-area-table-actions">
             <Button
               type="primary"
               onClick={SumbitReorder}
               loading={reorderLoader}
-              disabled={reorderLoader}
+              disabled={reorderLoader || !rowReorderred} 
             >
               Submit
             </Button>
@@ -670,36 +790,17 @@ const ViewArea = () => {
       ) : (
         <div
           id="scrollableDiv"
-          style={{
-            height: 500,
-            width: "auto",
-            overflow: "auto",
-            padding: "10px",
-            marginTop: 20,
-          }}
+          className="view-area-scrollable-div"
         >
           {showReset && searchText && (
-            <div
-              style={{
-                padding: "12px 0px",
-                marginBottom: "16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "left"
-              }}
-            >
-              <span style={{ fontSize: "14px", color: "#8c8c8c" }}>
+            <div className="view-area-search-results">
+              <span className="view-area-search-label">
                 Search Results:{" "}
-                <span style={{ fontWeight: 600, color: "#1677ff", fontSize: "15px" }}>
+                <span className="view-area-search-query">
                   "{searchText}"
                 </span>
               </span>
-              <span style={{ 
-                marginLeft: "12px", 
-                fontSize: "13px", 
-                color: "#52c41a",
-                fontWeight: 500 
-              }}>
+              <span className="view-area-results-count">
                 ({Object.values(groupedData).flat().length} results)
               </span>
             </div>
@@ -709,71 +810,48 @@ const ViewArea = () => {
             return (
               <div
                 key={lineName}
-                style={{
-                  marginBottom: "12px",
-                  border: "1px solid #e8e8e8",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  backgroundColor: "#fff"
-                }}
+                className="view-area-line-group"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "16px",
-                    backgroundColor: "#f5f5f5",
-                    borderBottom: "1px solid #e8e8e8"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="view-area-line-header">
+                  <div className="view-area-line-title-container">
                     <Avatar src={lineIcon}>
                       {lineName?.charAt(0)?.toUpperCase()}
                     </Avatar>
-                    <span style={{ fontWeight: 600, fontSize: "18px", color: "#262626" }}>
+                    <span className="view-area-line-title">
                       {lineName}
                     </span>
                   </div>
                   <Badge
                     count={groupedData[lineName].length}
-                    style={{
-                      backgroundColor: showReset ? "#1677ff" : "#52c41a",
-                      fontWeight: 500,
-                      boxShadow: "0 0 0 1px #fff"
-                    }}
+                    className={showReset ? "view-area-badge view-area-badge-search" : "view-area-badge"}
                   />
                 </div>
 
-                <div 
+                <div
                   id={'scrollableDiv-' + lineName}
-                  style={{ 
-                    maxHeight: 400, 
-                    overflow: "auto", 
-                    padding: 0
-                  }}
+                  className="view-area-list-container"
                 >
                   <InfiniteScroll
                     dataLength={areasPagination[lineName]?.displayed || AREAS_PAGE_SIZE}
                     next={() => loadMoreAreas(lineName)}
                     hasMore={
-                      (areasPagination[lineName]?.displayed || 0) < 
+                      (areasPagination[lineName]?.displayed || 0) <
                       (areasPagination[lineName]?.total || 0)
                     }
                     loader={
-                      <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div className="view-area-skeleton-container">
                         <Skeleton avatar paragraph={{ rows: 1 }} active />
                       </div>
                     }
                     endMessage={
-                      <Divider plain style={{ margin: "16px 0" }}>
-                        <span style={{ color: "red", fontSize: "18px", fontWeight: "bold" }}>★ </span>
-                        <span style={{ color: "#595959", fontSize: "14px" }}>
+                      <Divider plain className="view-area-divider-container">
+                        <span className="view-area-divider-star">★ </span>
+                        <span className="view-area-divider-text">
                           End of{" "}
-                          <span style={{ fontWeight: 600, color: "#262626" }}>
+                          <span className="view-area-divider-line-name">
                             {lineName}
                           </span> line{" "}
-                          <span style={{ color: "red", fontSize: "18px", fontWeight: "bold" }}>★</span>
+                          <span className="view-area-divider-star">★</span>
                         </span>
                       </Divider>
                     }
@@ -782,11 +860,11 @@ const ViewArea = () => {
                     <List
                       dataSource={
                         groupedData[lineName].slice(
-                          0, 
+                          0,
                           areasPagination[lineName]?.displayed || AREAS_PAGE_SIZE
                         )
                       }
-                      style={{ background: "#fafafa", margin: 0 }}
+                      className="view-area-list"
                       renderItem={(area) => {
                         const isExpanded = expandedAreas[lineName + '-' + area.id];
 
@@ -794,11 +872,7 @@ const ViewArea = () => {
                           <div
                             key={area.id}
                             id={'area-item-' + area.id}
-                            style={{
-                              borderBottom: "2px solid #f0f0f0",
-                              padding: 0,
-                              background: "#fff",
-                            }}
+                            className="view-area-list-item-wrapper"
                           >
                             {isMobile ? (
                               <SwipeablePanel
@@ -822,53 +896,30 @@ const ViewArea = () => {
                             ) : (
                               <>
                                 <List.Item
-                                  style={{
-                                    background: isExpanded ? "#f9f9f9" : "#fff",
-                                    cursor: "default",
-                                    padding: "12px 16px",
-                                  }}
+                                  className={isExpanded ? "view-area-list-item view-area-list-item-expanded" : "view-area-list-item"}
                                 >
                                   <List.Item.Meta
                                     avatar={
-                                      <div style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        flexShrink: 0
-                                      }}>
+                                      <div className="view-area-avatar-container">
                                         <img
                                           src={areaIcon}
                                           alt="area-icon"
-                                          style={{
-                                            width: "40px",
-                                            height: "40px",
-                                            objectFit: "contain"
-                                          }}
+                                          className="view-area-avatar-icon"
                                         />
                                       </div>
                                     }
                                     title={
                                       <div
                                         onClick={() => handleAreaAction(lineName, area.id)}
-                                        style={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          width: "100%",
-                                          cursor: "pointer",
-                                          padding: "6px 0",
-                                        }}
+                                        className="view-area-item-title-container"
                                       >
-                                        <span style={{ fontWeight: 600, color: "black" }}>
+                                        <span className="view-area-item-title">
                                           {area.areaName}
                                         </span>
                                         <Dropdown
                                           overlay={
                                             <Menu>
-                                              <Menu.Item 
+                                              <Menu.Item
                                                 key="edit"
                                                 onClick={(e) => {
                                                   e.domEvent.stopPropagation();
@@ -877,9 +928,9 @@ const ViewArea = () => {
                                               >
                                                 Edit
                                               </Menu.Item>
-                                              <Menu.Item 
+                                              <Menu.Item
                                                 key="delete"
-                                                danger 
+                                                danger
                                                 onClick={(e) => {
                                                   e.domEvent.stopPropagation();
                                                   onDelete(area);
@@ -892,11 +943,7 @@ const ViewArea = () => {
                                           trigger={["click"]}
                                         >
                                           <EllipsisOutlined
-                                            style={{
-                                              fontSize: "22px",
-                                              color: "#999",
-                                              cursor: "pointer",
-                                            }}
+                                            className="view-area-ellipsis-icon"
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </Dropdown>
@@ -906,7 +953,7 @@ const ViewArea = () => {
                                 </List.Item>
 
                                 {isExpanded && (
-                                  <div style={{ marginTop: 6, padding: "0 16px 16px 16px", background: "#f9f9f9" }}>
+                                  <div className="view-area-collapse-content">
                                     <AreaCollapseContent area={area} />
                                   </div>
                                 )}
@@ -923,7 +970,7 @@ const ViewArea = () => {
           })}
 
           {Object.keys(groupedData).length === 0 && !tableLoader && (
-            <div style={{ textAlign: "center", padding: "40px", color: "#8c8c8c" }}>
+            <div className="view-area-no-data">
               <p>No areas found {showReset && searchText ? 'for "' + searchText + '"' : "for the selected branch"}</p>
             </div>
           )}
@@ -936,14 +983,7 @@ const ViewArea = () => {
           type="primary"
           tooltip={<div>Add New Area</div>}
           onClick={() => navigate("/area/add")}
-          style={{
-            right: 24,
-            bottom: 24,
-            width: 56,
-            height: 56,
-            position: "fixed",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          }}
+          className="view-area-float-button"
         />
       )}
     </div>
