@@ -12,7 +12,8 @@ import { Link, useNavigate } from "react-router-dom";
 // users
 import user1 from "../../../assets/images/users/avatar-1.jpg";
 import Avatar from "../../Common/Avatar";
-import BranchNameModal from "../../Common/BranchNameModal"; // Adjust path as needed
+import BranchNameModal from "../../Common/BranchNameModal";
+import ChangePasswordModal from "../../Common/ChangePasswordModal"; // New import
 
 import "./ProfileMenu.css";
 
@@ -21,6 +22,7 @@ function ProfileMenu(props) {
   const [menu, setMenu] = useState(false);
   const [user, setUser] = useState({});
   const [branchModalVisible, setBranchModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false); // New state
   const [selectedBranch, setSelectedBranch] = useState("");
   
   const navigate = useNavigate();
@@ -37,25 +39,33 @@ function ProfileMenu(props) {
   };
 
   const handleChangeBranch = () => {
+    setMenu(false);
+    setBranchModalVisible(true);
+  };
+
+  const handleChangePassword = () => {
     setMenu(false); // Close dropdown
-    setBranchModalVisible(true); // Open branch modal
+    setPasswordModalVisible(true); // Open password modal
   };
 
   const handleBranchSave = (branchName) => {
-    // Update selected_branch_name in localStorage
     localStorage.setItem("selected_branch_name", branchName);
     setSelectedBranch(branchName);
-    
-    // Close modal
     setBranchModalVisible(false);
-    
-    // Optional: Show success notification or refresh data
-    // You might want to trigger a page reload or update global state
     window.location.reload();
   };
 
   const handleBranchCancel = () => {
     setBranchModalVisible(false);
+  };
+
+  const handlePasswordSave = () => {
+    setPasswordModalVisible(false);
+    // Password change is handled in the modal component
+  };
+
+  const handlePasswordCancel = () => {
+    setPasswordModalVisible(false);
   };
 
   useEffect(() => {
@@ -64,7 +74,6 @@ function ProfileMenu(props) {
       setUser(obj);
     }
     
-    // Get selected branch from localStorage
     const storedBranch = localStorage.getItem("selected_branch_name");
     if (storedBranch) {
       setSelectedBranch(storedBranch);
@@ -121,11 +130,15 @@ function ProfileMenu(props) {
                     fontWeight: '500',
                     marginTop: '2px'
                   }}>
-                   {selectedBranch}
+                     {selectedBranch}
                   </div>
                 )}
               </div>
             </div>
+          </DropdownItem>
+          <DropdownItem onClick={handleChangePassword}>
+            <i className="bx bx-key font-size-16 align-middle me-1" />
+            Change Password
           </DropdownItem>
           <DropdownItem tag="a" onClick={lockscreen}>
             <i className="bx bx-lock-open font-size-16 align-middle me-1" />
@@ -143,6 +156,14 @@ function ProfileMenu(props) {
         visible={branchModalVisible}
         onSave={handleBranchSave}
         onCancel={handleBranchCancel}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        visible={passwordModalVisible}
+        onSave={handlePasswordSave}
+        onCancel={handlePasswordCancel}
+        userId={user.id}
       />
     </React.Fragment>
   );
