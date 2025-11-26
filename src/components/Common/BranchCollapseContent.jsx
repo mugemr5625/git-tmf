@@ -118,23 +118,29 @@ const SecureImagePreview = ({ url }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Force timeout after 10 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Image load timeout:", url);
+        setImageError(true);
+        setIsLoading(false);
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   if (imageError) {
     return (
       <Alert
         message="Failed to load image"
         description={
           <>
-            <p>The image could not be displayed. This might be due to:</p>
-            <ul>
-              <li>Network issues</li>
-              <li>Expired signed URL</li>
-              <li>Corrupted file</li>
-              <li>CORS restrictions</li>
-            </ul>
+            <p>The image could not be displayed.</p>
             <Button 
-              type="primary" 
-              style={{ marginTop: 8 }}
-              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              type="primary"
+              onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
             >
               Open in New Tab
             </Button>
@@ -149,36 +155,35 @@ const SecureImagePreview = ({ url }) => {
   return (
     <div className="secure-image-container">
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: 40 }}>
+        <div style={{ textAlign: "center", padding: 40 }}>
           <Spin tip="Loading image..." />
         </div>
       )}
+
       <img
         src={url}
         alt="Preview"
         className="image-preview"
-        onError={(e) => {
-          console.error('Image failed to load:', url);
-          console.error('Error event:', e);
+        onError={() => {
+          console.error("Image failed:", url);
           setImageError(true);
           setIsLoading(false);
         }}
         onLoad={() => {
-          console.log('Image loaded successfully:', url);
+          console.log("Image loaded:", url);
           setIsLoading(false);
         }}
-        loading="lazy"
-        style={{ 
-          display: isLoading ? 'none' : 'block',
-          maxWidth: '100%',
-          height: 'auto'
+        style={{
+          display: isLoading ? "none" : "block",
+          maxWidth: "100%",
+          height: "auto",
         }}
-        // ❌ Remove crossOrigin - it causes issues with signed URLs
-        // crossOrigin="anonymous"
       />
     </div>
   );
 };
+
+
 const SecurePDFPreview = ({ url }) => {
   const [pdfError, setPdfError] = useState(false);
   const [useGoogleViewer, setUseGoogleViewer] = useState(false);
