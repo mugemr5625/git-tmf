@@ -9,6 +9,7 @@ import {
   MenuUnfoldOutlined,
   SettingOutlined,
   UserOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import { Button, Drawer, Layout, Menu, theme } from 'antd';
 import { useEffect, useState ,useMemo} from 'react';
@@ -44,38 +45,38 @@ const VerticalLayout = (props) => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
   const menuItems = useMemo(() => [
-  // { key: '/home', icon: <HomeOutlined />, label: 'Home' },
+  { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   {
     key: 'settings',
     icon: <SettingOutlined />,
     label: 'Settings',
     children: [
-      // { key: '/view', icon: <BankOutlined />, label: 'Organization' },
+      { key: '/view', icon: <BankOutlined />, label: 'Organization' },
       { key: '/branch/list', icon: <BankOutlined />, label: 'Branch' },
       { key: '/line', icon: <LineChartOutlined />, label: 'Line' },
       { key: '/area', icon: <EnvironmentOutlined />, label: 'Area' },
-      // { key: '/expense/list', icon: <DollarOutlined />, label: 'Expense Type' },
+      { key: '/expense/list', icon: <DollarOutlined />, label: 'Expense Type' },
       { key: '/investment', icon: <DollarOutlined />, label: 'Investments' },
-      // { key: '/expense-transaction', icon: <FileOutlined />, label: 'Expense Transactions' },
+      { key: '/expense-transaction', icon: <FileOutlined />, label: 'Expense Transactions' },
     ],
   },
-  // {
-  //   key: 'users',
-  //   icon: <UserOutlined />,
-  //   label: 'Users',
-  //   children: [
-  //     { key: '/user/list', icon: <UserOutlined />, label: 'All Users' },
-  //   ],
-  // },
-  // {
-  //   key: 'loan',
-  //   icon: <DollarOutlined />,
-  //   label: 'Loan',
-  //   children: [
-  //     { key: '/disburse-loan', icon: <DollarOutlined />, label: 'Loan Disbursement' },
-  //   ],
-  // },
-   { key: '/reset-password', icon: <HomeOutlined />, label: 'Reset Password' },
+  {
+    key: 'users',
+    icon: <UserOutlined />,
+    label: 'Users',
+    children: [
+      { key: '/user/list', icon: <UserOutlined />, label: 'All Users' },
+    ],
+  },
+  {
+    key: 'loan',
+    icon: <DollarOutlined />,
+    label: 'Loan',
+    children: [
+      { key: '/disburse-loan', icon: <DollarOutlined />, label: 'Loan Disbursement' },
+    ],
+  },
+   { key: '/reset-password', icon: <LockOutlined />, label: 'Reset Password' },
 ], []);
 
   // const menuItems = [
