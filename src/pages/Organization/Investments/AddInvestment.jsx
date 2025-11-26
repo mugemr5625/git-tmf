@@ -4,9 +4,11 @@ import PAYMENT_MODES_OPTIONS from "constants/payment_modes";
 import { POST, PUT } from "helpers/api_helper";
 import { getDetails, getList } from "helpers/getters";
 import { ADD_BRANCH, INVESTMENT, LINE, USERS } from "helpers/url_helper";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, NOTIFICATION_TITLES } from "helpers/errorMessages";
 import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import "./AddInvestment.css";
 
 const AddInvestment = () => {
   const [form] = Form.useForm();
@@ -22,10 +24,8 @@ const AddInvestment = () => {
   const [selectedBranchId, setSelectedBranchId] = useState(null);
 
   useEffect(() => {
-    // Get branch from localStorage
     const storedBranchName = localStorage.getItem('selected_branch_name');
     if (storedBranchName && branchList) {
-      // Find the branch ID by matching the branch name
       const matchedBranch = branchList.find(
         branch => branch.branch_name === storedBranchName
       );
@@ -55,12 +55,10 @@ const AddInvestment = () => {
     ) {
       setLoading(false);
       
-      // Set form values
       if (investment) {
         form.setFieldsValue(investment);
       }
       
-      // Set branch from localStorage if not editing
       if (!params.id && selectedBranchId) {
         form.setFieldsValue({ branch: selectedBranchId });
       }
@@ -78,19 +76,25 @@ const AddInvestment = () => {
       }
       if (response?.status === 200 || response?.status === 201) {
         notification.success({
-          message: `${values.investment_title.toUpperCase()} investment ${params.id ? "updated" : "added"}!`,
-          description: `Investment details has been ${params.id ? "updated" : "added"} successfully`,
+          message: `${values.investment_title.toUpperCase()} ${NOTIFICATION_TITLES.INVESTMENT} ${
+            params.id ? "updated" : "added"
+          }!`,
+          description: params.id 
+            ? SUCCESS_MESSAGES.INVESTMENT.UPDATED 
+            : SUCCESS_MESSAGES.INVESTMENT.CREATED,
         });
         navigate("/investment");
       } else {
         notification.error({
-          message: `Failed to ${params.id ? "update" : "add"} investment`,
+          message: params.id 
+            ? ERROR_MESSAGES.INVESTMENT.UPDATE_FAILED 
+            : ERROR_MESSAGES.INVESTMENT.ADD_FAILED,
         });
       }
     } catch (error) {
       console.log(error);
       notification.error({
-        message: "An error occurred",
+        message: ERROR_MESSAGES.INVESTMENT.OPERATION_ERROR,
       });
     } finally {
       setLoading(false);
@@ -101,45 +105,23 @@ const AddInvestment = () => {
     <Fragment>
       {loading && <Loader />}
 
-      <div
-        className="page-content"
-        style={{
-          marginRight: "10px",
-          marginLeft: "-10px",
-          maxWidth: "100%",
-        }}
-      >
-        <div
-          className="container-fluid"
-          style={{
-            marginTop: -100,
-            padding: 0,
-          }}
-        >
+      <div className="add-investment-page-content">
+        <div className="add-investment-container-fluid">
           <div className="row">
             <div className="col-md-12">
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "20px",
-                }}
-              >
-                <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 600 }}>
+              <div className="add-investment-header">
+                <h2 className="add-investment-title">
                   {params.id ? "Edit Investment" : "Add Investment"}
                 </h2>
-                
-               
               </div>
 
               <Form
                 form={form}
                 layout="vertical"
                 onFinish={onFinish}
-                style={{ padding: 0, marginRight: "-20px", marginBottom: "-30px" }}
+                className="add-investment-form"
               >
-                <div className="container" style={{ padding: 0 }}>
+                <div className="container add-investment-form-container">
                   
                   {/* Investment Title and User */}
                   <div className="row mb-2">
@@ -150,12 +132,11 @@ const AddInvestment = () => {
                         rules={[
                           {
                             required: true,
-                            message: "Please enter an investment title",
+                            message: ERROR_MESSAGES.INVESTMENT.TITLE_REQUIRED,
                           },
                           {
                             pattern: /^[A-Za-z][A-Za-z0-9-_ ]*$/,
-                            message:
-                              "Investment title must start with an alphabet and can only contain alphanumeric characters, '-' or '_'",
+                            message: ERROR_MESSAGES.INVESTMENT.TITLE_PATTERN,
                           },
                         ]}
                       >
@@ -167,7 +148,10 @@ const AddInvestment = () => {
                         label="Full Name | User Name"
                         name="user"
                         rules={[
-                          { required: true, message: "Please select a user" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.INVESTMENT.USER_REQUIRED 
+                          },
                         ]}
                       >
                         <Select 
@@ -193,7 +177,10 @@ const AddInvestment = () => {
                         label="Branch Name"
                         name="branch"
                         rules={[
-                          { required: true, message: "Please select a branch" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.INVESTMENT.BRANCH_REQUIRED 
+                          },
                         ]}
                       >
                         <Select 
@@ -215,7 +202,10 @@ const AddInvestment = () => {
                         label="Line Name"
                         name="line"
                         rules={[
-                          { required: true, message: "Please select a line" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.INVESTMENT.LINE_REQUIRED 
+                          },
                         ]}
                       >
                         <Select 
@@ -247,11 +237,14 @@ const AddInvestment = () => {
                         label="Investment Amount"
                         name="investment_amount"
                         rules={[
-                          { required: true, message: "Please enter an amount" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.INVESTMENT.AMOUNT_REQUIRED 
+                          },
                           {
                             type: "number",
                             min: 1,
-                            message: "Amount must be greater than 0",
+                            message: ERROR_MESSAGES.INVESTMENT.AMOUNT_MIN,
                             transform: (value) => Number(value),
                           },
                         ]}
@@ -270,7 +263,7 @@ const AddInvestment = () => {
                         rules={[
                           {
                             required: true,
-                            message: "Please select a payment mode",
+                            message: ERROR_MESSAGES.INVESTMENT.PAYMENT_MODE_REQUIRED,
                           },
                         ]}
                       >
@@ -296,7 +289,10 @@ const AddInvestment = () => {
                         label="Date of Investment"
                         name="investment_date"
                         rules={[
-                          { required: true, message: "Please select a date" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.INVESTMENT.DATE_REQUIRED 
+                          },
                         ]}
                       >
                         <Input type="date" size="large" />
@@ -313,7 +309,7 @@ const AddInvestment = () => {
                     </div>
                   </div>
 
-                  <Divider style={{ borderTop: "2px solid #d9d9d9" }} />
+                  <Divider className="add-investment-divider" />
 
                   {/* Buttons */}
                   <div className="text-center mt-4">
@@ -321,14 +317,13 @@ const AddInvestment = () => {
                       <Button type="primary" htmlType="submit" size="large">
                         {params.id ? "Update Investment" : "Add Investment"}
                       </Button>
-                       <Button
-                  size="large"
-                  onClick={() => navigate("/investment")}
-                >
-                  Cancel
-                </Button>
+                      <Button
+                        size="large"
+                        onClick={() => navigate("/investment")}
+                      >
+                        Cancel
+                      </Button>
                     </Space>
-                    
                   </div>
                 </div>
               </Form>
