@@ -17,7 +17,7 @@ const AreaCollapseContent = ({ area }) => {
         }}
       >
         <Descriptions.Item label="Area Code:">
-          {area.area_code || "N/A"}
+          {area.id || "N/A"}
         </Descriptions.Item>
         <Descriptions.Item label="Area Name:">
           {area.areaName || "N/A"}
