@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, Badge, Divider, Skeleton, FloatButton, Descriptions, Select, Radio, DatePicker } from "antd";
+import { Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, Badge, Divider, Skeleton, FloatButton, Descriptions, Select, Radio } from "antd";
 import { DELETE, GET } from "helpers/api_helper";
 import { INVESTMENT } from "helpers/url_helper";
 import Loader from "components/Common/Loader";
@@ -8,17 +8,17 @@ import SwipeablePanel from "components/Common/SwipeablePanel";
 import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
 import InfiniteScroll from "react-infinite-scroll-component";
 import lineIcon from "../../../assets/images/location.png";
-import investmentIcon from "../../../assets/industrial-area.png";
-import InvestmentCollapsePanel from "components/Common/InvestmentCollapseContent";
+import investmentIcon from "../../../assets/icons/industrial-area.png";
 import dayjs from 'dayjs';
+import "./InvestmentList.css";
 
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import InvestmentCollapseContent from "components/Common/InvestmentCollapseContent";
 
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 
-const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 const InvestmentList = () => {
@@ -36,15 +36,17 @@ const InvestmentList = () => {
   const [selectedBranchFromStorage, setSelectedBranchFromStorage] = useState(null);
   const [investmentsPagination, setInvestmentsPagination] = useState({});
   const [firstLoad, setFirstLoad] = useState(true);
-  const [hasSearched, setHasSearched] = useState(false); // New state to track if search was performed
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // Enhanced search filters
-  const [selectedLine, setSelectedLine] = useState("");
+  const [selectedLines, setSelectedLines] = useState([]);
   const [dateFilterType, setDateFilterType] = useState("all");
-  const [dateRange, setDateRange] = useState([null, null]);
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [searchCriteria, setSearchCriteria] = useState(null);
+  const [dateError, setDateError] = useState("");
   
   const INVESTMENTS_PAGE_SIZE = 10;
+  const today = dayjs().format('YYYY-MM-DD');
+  const ALL_LINES_VALUE = "__ALL_LINES__";
 
   const { useBreakpoint } = Grid;
   const screens = useBreakpoint();
@@ -68,7 +70,6 @@ const InvestmentList = () => {
     }
   }, []);
 
-  // Show modal on first load after data is fetched
   useEffect(() => {
     if (firstLoad && !loading && originalData.length > 0) {
       setSearchModalVisible(true);
@@ -76,7 +77,6 @@ const InvestmentList = () => {
     }
   }, [firstLoad, loading, originalData]);
 
-  // Group data by line name
   const groupInvestmentsByLine = (data) => {
     const grouped = {};
     data.forEach((investment) => {
@@ -89,32 +89,79 @@ const InvestmentList = () => {
     return grouped;
   };
 
-  // Get unique line names for dropdown
   const getUniqueLines = () => {
     const lines = [...new Set(originalData.map(inv => inv.line_name || "Uncategorized"))];
     return lines.sort();
   };
 
+  // Handle line selection with "All Lines" logic
+  const handleLineSelection = (values) => {
+    // If "All Lines" is selected, clear all other selections
+    if (values.includes(ALL_LINES_VALUE)) {
+      setSelectedLines([ALL_LINES_VALUE]);
+    } else {
+      setSelectedLines(values);
+    }
+  };
+
+  // Validate date inputs
+  const validateDateRange = (fromDate, toDate) => {
+    if (!fromDate || !toDate) {
+      setDateError("Please select both from and to dates");
+      return false;
+    }
+
+    const from = dayjs(fromDate);
+    const to = dayjs(toDate);
+    const todayDate = dayjs(today);
+
+    // Check if from date is not greater than to date
+    if (from.isAfter(to)) {
+      setDateError("From date cannot be greater than to date");
+      return false;
+    }
+
+    // Check if to date is not greater than today
+    if (to.isAfter(todayDate)) {
+      setDateError("To date cannot be greater than today");
+      return false;
+    }
+
+    setDateError("");
+    return true;
+  };
+
+  const handleDateChange = (field, value) => {
+    const newDateRange = { ...dateRange, [field]: value };
+    setDateRange(newDateRange);
+
+    // Validate whenever either date changes
+    if (newDateRange.from && newDateRange.to) {
+      validateDateRange(newDateRange.from, newDateRange.to);
+    } else {
+      setDateError("");
+    }
+  };
+
   const handleReset = () => {
-    // Clear the list when resetting
     setInvestments([]);
     setGroupedData({});
     setInvestmentsPagination({});
     
     setShowReset(false);
     setSearchText("");
-    setSelectedLine("");
+    setSelectedLines([]);
     setDateFilterType("all");
-    setDateRange([null, null]);
+    setDateRange({ from: "", to: "" });
+    setDateError("");
     setSearchCriteria(null);
-    setHasSearched(false); // Reset search status
+    setHasSearched(false);
     
     notification.success({
       message: "Data Reset",
       description: "Please perform a new search to view investments.",
     });
     
-    // Show search modal after reset
     setTimeout(() => {
       setSearchModalVisible(true);
     }, 300);
@@ -134,7 +181,6 @@ const InvestmentList = () => {
           );
         }
         
-        // Don't set investments or groupedData yet - wait for search
         setOriginalData(filteredData);
       } else {
         setOriginalData([]);
@@ -243,12 +289,13 @@ const InvestmentList = () => {
   };
 
   const handleSearch = () => {
-    // Validate: At least one search criteria must be provided
-    const hasLineCriteria = selectedLine && selectedLine !== "";
-    const hasDateCriteria = dateFilterType === "range" && dateRange[0] && dateRange[1];
+    // Check if "All Lines" is selected or no lines selected
+    const isAllLinesSelected = selectedLines.includes(ALL_LINES_VALUE) || selectedLines.length === 0;
+    const hasLineCriteria = !isAllLinesSelected && selectedLines.length > 0;
+    const hasDateCriteria = dateFilterType === "range" && dateRange.from && dateRange.to;
     const hasTextCriteria = searchText.trim() !== "";
 
-    if (!hasLineCriteria && !hasDateCriteria && !hasTextCriteria) {
+    if (!hasLineCriteria && !hasDateCriteria && !hasTextCriteria && !isAllLinesSelected) {
       notification.warning({
         message: "Search Required",
         description: "Please select at least one search criteria (line, date range, or investment title).",
@@ -256,19 +303,29 @@ const InvestmentList = () => {
       return;
     }
 
+    // Validate date range if selected
+    if (dateFilterType === "range" && (dateRange.from || dateRange.to)) {
+      if (!validateDateRange(dateRange.from, dateRange.to)) {
+        notification.error({
+          message: "Invalid Date Range",
+          description: dateError,
+        });
+        return;
+      }
+    }
+
     let filtered = [...originalData];
 
-    // Filter by line
-    if (selectedLine && selectedLine !== "") {
+    // Apply line filter only if specific lines are selected (not "All Lines")
+    if (hasLineCriteria) {
       filtered = filtered.filter(item => 
-        (item.line_name || "Uncategorized") === selectedLine
+        selectedLines.includes(item.line_name || "Uncategorized")
       );
     }
 
-    // Filter by date range
-    if (dateFilterType === "range" && dateRange[0] && dateRange[1]) {
-      const fromDate = dayjs(dateRange[0]).startOf('day');
-      const toDate = dayjs(dateRange[1]).endOf('day');
+    if (dateFilterType === "range" && dateRange.from && dateRange.to) {
+      const fromDate = dayjs(dateRange.from).startOf('day');
+      const toDate = dayjs(dateRange.to).endOf('day');
       
       filtered = filtered.filter(item => {
         const investmentDate = dayjs(item.created_date || item.investment_date);
@@ -278,7 +335,6 @@ const InvestmentList = () => {
       });
     }
 
-    // Filter by investment title
     if (searchText.trim()) {
       const query = searchText.trim().toLowerCase();
       filtered = filtered.filter(item => {
@@ -287,12 +343,11 @@ const InvestmentList = () => {
       });
     }
 
-    // Save search criteria for display
     const criteria = {
-      line: selectedLine && selectedLine !== "" ? selectedLine : null,
+      lines: isAllLinesSelected ? ["All Lines"] : (hasLineCriteria ? selectedLines : null),
       dateType: dateFilterType,
-      fromDate: dateRange[0] ? dayjs(dateRange[0]).format('DD-MMM-YYYY') : null,
-      toDate: dateRange[1] ? dayjs(dateRange[1]).format('DD-MMM-YYYY') : null,
+      fromDate: dateRange.from ? dayjs(dateRange.from).format('DD-MMM-YYYY') : null,
+      toDate: dateRange.to ? dayjs(dateRange.to).format('DD-MMM-YYYY') : null,
       searchText: searchText.trim() || null
     };
 
@@ -307,7 +362,7 @@ const InvestmentList = () => {
     
     setSearchModalVisible(false);
     setShowReset(true);
-    setHasSearched(true); // Mark that search has been performed
+    setHasSearched(true);
 
     if (filtered.length === 0) {
       notification.warning({
@@ -315,7 +370,6 @@ const InvestmentList = () => {
         description: "No investments found matching your search criteria.",
       });
     } else {
-      // Auto-expand all lines
       const expandedLinesObj = {};
       Object.keys(grouped).forEach(lineName => {
         expandedLinesObj[lineName] = true;
@@ -334,8 +388,8 @@ const InvestmentList = () => {
 
     const parts = [];
     
-    if (searchCriteria.line) {
-      parts.push(`Line: ${searchCriteria.line}`);
+    if (searchCriteria.lines && searchCriteria.lines.length > 0) {
+      parts.push(`Lines: ${searchCriteria.lines.join(", ")}`);
     }
     
     if (searchCriteria.dateType === "range" && searchCriteria.fromDate && searchCriteria.toDate) {
@@ -353,7 +407,7 @@ const InvestmentList = () => {
 
   const searchModal = (
     <Modal
-      title={<div style={{ textAlign: "center", width: "100%" }}>Search Investment</div>}
+      title={<div className="investment-list-modal-title">Search Investment</div>}
       open={searchModalVisible}
       onOk={handleSearch}
       onCancel={hasSearched ? () => setSearchModalVisible(false) : undefined}
@@ -364,33 +418,42 @@ const InvestmentList = () => {
       closable={hasSearched}
       maskClosable={hasSearched}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="investment-list-modal-content">
        
-        {/* 1. Select Line */}
         <div>
-          <p style={{ marginBottom: 8, fontWeight: 500 }}>Select Line:</p>
+          <p className="investment-list-modal-label">Select Lines:</p>
           <Select
-            value={selectedLine === "" ? undefined : selectedLine}
-            onChange={setSelectedLine}
+            mode="multiple"
+            value={selectedLines}
+            onChange={handleLineSelection}
             style={{ width: "100%" }}
-            placeholder="Select a line"
+            placeholder="Select lines"
             allowClear
+            maxTagCount="responsive"
           >
+            <Option key={ALL_LINES_VALUE} value={ALL_LINES_VALUE}>
+              All Lines
+            </Option>
             {getUniqueLines().map(line => (
               <Option key={line} value={line}>{line}</Option>
             ))}
           </Select>
+          {/* {(selectedLines.length === 0 || selectedLines.includes(ALL_LINES_VALUE)) && (
+            <p style={{ fontSize: "12px", color: "#8c8c8c", marginTop: "4px" }}>
+              All lines selected - will show investments from all lines
+            </p>
+          )} */}
         </div>
 
-        {/* 2. Date Filter */}
         <div>
-          <p style={{ marginBottom: 8, fontWeight: 500 }}>Date Filter:</p>
+          <p className="investment-list-modal-label">Date Filter:</p>
           <Radio.Group 
             value={dateFilterType} 
             onChange={(e) => {
               setDateFilterType(e.target.value);
               if (e.target.value === "all") {
-                setDateRange([null, null]);
+                setDateRange({ from: "", to: "" });
+                setDateError("");
               }
             }}
             style={{ marginBottom: 12 }}
@@ -400,65 +463,45 @@ const InvestmentList = () => {
           </Radio.Group>
 
           {dateFilterType === "range" && (
-            <div style={{ 
-              padding: "12px", 
-              backgroundColor: "#f5f5f5", 
-              borderRadius: "6px",
-              border: "1px solid #d9d9d9"
-            }}>
-              <p style={{ marginBottom: 8, fontSize: "13px", color: "#595959" }}>
+            <div className="investment-list-date-filter-container">
+              <p className="investment-list-date-filter-label">
                 Select date range:
               </p>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <DatePicker
-                  value={dateRange[0]}
-                  onChange={(date) => setDateRange([date, dateRange[1]])}
-                  style={{ flex: 1 }}
-                  format="DD-MMM-YYYY"
-                  placeholder="From Date"
-                  disabledDate={(current) => {
-                    const today = dayjs().endOf('day');
-                    if (current && current.isAfter(today)) {
-                      return true;
-                    }
-                    return dateRange[1] && current && current.isAfter(dateRange[1], 'day');
-                  }}
+              <div className="investment-list-date-range-container">
+                <input
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => handleDateChange("from", e.target.value)}
+                  max={dateRange.to || today}
+                  className="investment-list-date-input"
                 />
-                <span style={{ color: "#8c8c8c" }}>to</span>
-                <DatePicker
-                  value={dateRange[1]}
-                  onChange={(date) => setDateRange([dateRange[0], date])}
-                  style={{ flex: 1 }}
-                  format="DD-MMM-YYYY"
-                  placeholder="To Date"
-                  disabledDate={(current) => {
-                    const today = dayjs().endOf('day');
-                    if (current && current.isAfter(today)) {
-                      return true;
-                    }
-                    return dateRange[0] && current && current.isBefore(dateRange[0], 'day');
-                  }}
+                <span className="investment-list-date-separator">to</span>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => handleDateChange("to", e.target.value)}
+                  min={dateRange.from || undefined}
+                  max={today}
+                  className="investment-list-date-input"
                 />
               </div>
+              {dateError && (
+                <p style={{ color: "#ff4d4f", fontSize: "12px", marginTop: "8px" }}>
+                  {dateError}
+                </p>
+              )}
             </div>
           )}
         </div>
 
-        {/* 3. Investment Title */}
         <div>
-          <p style={{ marginBottom: 8, fontWeight: 500 }}>Investment Title:</p>
+          <p className="investment-list-modal-label">Investment Title:</p>
           <input
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="Enter investment title to search"
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              borderRadius: "6px",
-              border: "1px solid #d9d9d9",
-              outline: "none",
-            }}
+            className="investment-list-search-input"
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
                 handleSearch();
@@ -466,8 +509,6 @@ const InvestmentList = () => {
             }}
           />
         </div>
-
-       
       </div>
     </Modal>
   );
@@ -475,21 +516,11 @@ const InvestmentList = () => {
   const handleEditInvestment = (investment) => navigate(`/investment/edit/${investment.id}`);
 
   return (
-    <div className="page-content" style={{ padding: 0, margin: "0px 0px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginTop: 0,
-          marginLeft: 0,
-          padding: 0,
-          marginBottom: "10px",
-        }}
-      >
-        <h2 style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}>Investment List</h2>
+    <div className="investment-list-page-content">
+      <div className="investment-list-header">
+        <h2 className="investment-list-title">Investment List</h2>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="investment-list-actions">
           <Button
             icon={<SearchOutlined />}
             onClick={() => setSearchModalVisible(true)}
@@ -510,51 +541,24 @@ const InvestmentList = () => {
 
       {loading && <Loader />}
 
-      {/* Only show the list if search has been performed */}
       {hasSearched && (
         <div
           id="scrollableDiv"
-          style={{
-            height: 500,
-            width: "auto",
-            overflow: "auto",
-            padding: "10px",
-            marginTop: 20,
-          }}
+          className="investment-list-scrollable-div"
         >
           {showReset && searchCriteria && (
-            <div
-              style={{
-                padding: "12px 16px",
-                marginBottom: "16px",
-                backgroundColor: "#f0f5ff",
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap"
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: "13px", color: "#595959", marginRight: "8px" }}>
+            <div className="investment-list-search-results">
+              <div className="investment-list-search-results-content">
+                <span className="investment-list-search-label">
                   Search Results:
                 </span>
-                <div style={{ 
-                  fontSize: "14px", 
-                  color: "#1677ff",
-                  fontWeight: 500,
-                  marginTop: "4px"
-                }}>
+                <div className="investment-list-search-criteria">
                   {getSearchCriteriaDisplay()}
                 </div>
               </div>
               <Badge 
                 count={Object.values(groupedData).flat().length}
-                style={{
-                  backgroundColor: "#52c41a",
-                  fontWeight: 600,
-                  boxShadow: "0 2px 8px rgba(82, 196, 26, 0.3)"
-                }}
+                className="investment-list-results-badge"
               />
             </div>
           )}
@@ -565,50 +569,26 @@ const InvestmentList = () => {
             return (
               <div
                 key={lineName}
-                style={{
-                  marginBottom: "12px",
-                  border: "1px solid #e8e8e8",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  backgroundColor: "#fff"
-                }}
+                className="investment-list-line-group"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "16px",
-                    backgroundColor: "#f5f5f5",
-                    borderBottom: "1px solid #e8e8e8",
-                    cursor: "default",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="investment-list-line-header">
+                  <div className="investment-list-line-title-container">
                     <Avatar src={lineIcon}>
                       {lineName?.charAt(0)?.toUpperCase()}
                     </Avatar>
-                    <span style={{ fontWeight: 600, fontSize: "18px", color: "#262626" }}>
+                    <span className="investment-list-line-title">
                       {lineName}
                     </span>
                   </div>
                   <Badge
                     count={groupedData[lineName].length}
-                    style={{
-                      backgroundColor: showReset ? "#1677ff" : "#52c41a",
-                      fontWeight: 500,
-                      boxShadow: "0 0 0 1px #fff"
-                    }}
+                    className={showReset ? "investment-list-badge-search" : "investment-list-badge"}
                   />
                 </div>
 
                 <div 
                   id={'scrollableDiv-' + lineName}
-                  style={{ 
-                    maxHeight: 400, 
-                    overflow: "auto", 
-                    padding: 0
-                  }}
+                  className="investment-list-container"
                 >
                   <InfiniteScroll
                     dataLength={investmentsPagination[lineName]?.displayed || INVESTMENTS_PAGE_SIZE}
@@ -618,19 +598,19 @@ const InvestmentList = () => {
                       (investmentsPagination[lineName]?.total || 0)
                     }
                     loader={
-                      <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <div className="investment-list-skeleton">
                         <Skeleton avatar paragraph={{ rows: 1 }} active />
                       </div>
                     }
                     endMessage={
-                      <Divider plain style={{ margin: "16px 0" }}>
-                        <span style={{ color: "red", fontSize: "18px", fontWeight: "bold" }}>★ </span>
-                        <span style={{ color: "#595959", fontSize: "14px" }}>
+                      <Divider plain className="investment-list-divider">
+                        <span className="investment-list-divider-star">★ </span>
+                        <span className="investment-list-divider-text">
                           End of{" "}
-                          <span style={{ fontWeight: 600, color: "#262626" }}>
+                          <span className="investment-list-divider-line-name">
                             {lineName}
                           </span> line{" "}
-                          <span style={{ color: "red", fontSize: "18px", fontWeight: "bold" }}>★</span>
+                          <span className="investment-list-divider-star">★</span>
                         </span>
                       </Divider>
                     }
@@ -643,7 +623,7 @@ const InvestmentList = () => {
                           investmentsPagination[lineName]?.displayed || INVESTMENTS_PAGE_SIZE
                         )
                       }
-                      style={{ background: "#fafafa", margin: 0 }}
+                      className="investment-list"
                       renderItem={(investment) => {
                         const isExpanded = expandedInvestments[lineName + '-' + investment.id];
 
@@ -651,11 +631,7 @@ const InvestmentList = () => {
                           <div
                             key={investment.id}
                             id={'investment-item-' + investment.id}
-                            style={{
-                              borderBottom: "2px solid #f0f0f0",
-                              padding: 0,
-                              background: "#fff",
-                            }}
+                            className="investment-list-item-wrapper"
                           >
                             {isMobile ? (
                               <SwipeablePanel
@@ -670,7 +646,7 @@ const InvestmentList = () => {
                                 onExpandToggle={() => handleInvestmentAction(lineName, investment.id)}
                                 renderContent={() => (
                                   isExpanded ? (
-                                    <InvestmentCollapsePanel investment={investment} />
+                                    <InvestmentCollapseContent investment={investment} />
                                   ) : null
                                 )}
                                 isSwipeOpen={openSwipeId === investment.id}
@@ -679,47 +655,24 @@ const InvestmentList = () => {
                             ) : (
                               <>
                                 <List.Item
-                                  style={{
-                                    background: isExpanded ? "#f9f9f9" : "#fff",
-                                    cursor: "default",
-                                    padding: "12px 16px",
-                                  }}
+                                  className={isExpanded ? "investment-list-item investment-list-item-expanded" : "investment-list-item"}
                                 >
                                   <List.Item.Meta
                                     avatar={
-                                      <div style={{
-                                        width: "40px",
-                                        height: "40px",
-                                        borderRadius: "50%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        flexShrink: 0
-                                      }}>
+                                      <div className="investment-list-avatar-container">
                                         <img
                                           src={investmentIcon}
                                           alt="investment-icon"
-                                          style={{
-                                            width: "40px",
-                                            height: "40px",
-                                            objectFit: "contain"
-                                          }}
+                                          className="investment-list-avatar-icon"
                                         />
                                       </div>
                                     }
                                     title={
                                       <div
                                         onClick={() => handleInvestmentAction(lineName, investment.id)}
-                                        style={{
-                                          display: "flex",
-                                          justifyContent: "space-between",
-                                          alignItems: "center",
-                                          width: "100%",
-                                          cursor: "pointer",
-                                          padding: "6px 0",
-                                        }}
+                                        className="investment-list-item-title-container"
                                       >
-                                        <span style={{ fontWeight: 600, color: "black" }}>
+                                        <span className="investment-list-item-title">
                                           {investment.investment_title}
                                         </span>
                                         <Dropdown
@@ -749,11 +702,7 @@ const InvestmentList = () => {
                                           trigger={["click"]}
                                         >
                                           <EllipsisOutlined
-                                            style={{
-                                              fontSize: "22px",
-                                              color: "#999",
-                                              cursor: "pointer",
-                                            }}
+                                            className="investment-list-ellipsis-icon"
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                         </Dropdown>
@@ -763,8 +712,8 @@ const InvestmentList = () => {
                                 </List.Item>
 
                                 {isExpanded && (
-                                  <div style={{ marginTop: 6, padding: "0 16px 16px 16px", background: "#f9f9f9" }}>
-                                    <InvestmentCollapsePanel investment={investment} />
+                                  <div className="investment-list-collapse-content">
+                                    <InvestmentCollapseContent investment={investment} />
                                   </div>
                                 )}
                               </>
@@ -780,26 +729,18 @@ const InvestmentList = () => {
           })}
 
           {Object.keys(groupedData).length === 0 && !loading && (
-            <div style={{ textAlign: "center", padding: "40px", color: "#8c8c8c" }}>
+            <div className="investment-list-no-data">
               <p>No investments found matching your search criteria</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Show message when no search has been performed */}
       {!hasSearched && !loading && (
-        <div style={{ 
-          textAlign: "center", 
-          padding: "60px 20px", 
-          color: "#8c8c8c",
-          // backgroundColor: "#fafafa",
-          borderRadius: "8px",
-          margin: "20px 10px"
-        }}>
-          <SearchOutlined style={{ fontSize: "48px", color: "#d9d9d9", marginBottom: "16px" }} />
-          <p style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px" }}>No Search Performed</p>
-          <p style={{ fontSize: "14px" }}>Please use the Search button to filter and view investments.</p>
+        <div className="investment-list-no-search">
+          <SearchOutlined className="investment-list-no-search-icon" />
+          <p className="investment-list-no-search-title">No Search Performed</p>
+          <p className="investment-list-no-search-text">Please use the Search button to filter and view investments.</p>
         </div>
       )}
 
@@ -808,14 +749,7 @@ const InvestmentList = () => {
         type="primary"
         tooltip={<div>Add New Investment</div>}
         onClick={() => navigate("/investment/add")}
-        style={{
-          right: 24,
-          bottom: 24,
-          width: 56,
-          height: 56,
-          position: "fixed",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-        }}
+        className="investment-list-float-button"
       />
     </div>
   );
