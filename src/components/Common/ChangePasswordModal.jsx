@@ -146,7 +146,7 @@ const ChangePasswordModal = ({ visible, onSave, onCancel, userId }) => {
         >
           <Input.Password
             prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
-            placeholder="Enter new password (min 8 characters)"
+            placeholder="Enter new password (min 4 characters)"
             iconRender={(visible) =>
               visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
             }
