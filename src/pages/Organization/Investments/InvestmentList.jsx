@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, Badge, Divider, Skeleton, FloatButton, Descriptions, Select, Radio } from "antd";
+import { 
+  Button, notification, Grid, List, Avatar, Dropdown, Menu, Modal, 
+  Badge, Divider, Skeleton, FloatButton, Select, Radio, DatePicker 
+} from "antd";
 import { DELETE, GET } from "helpers/api_helper";
 import { INVESTMENT } from "helpers/url_helper";
 import Loader from "components/Common/Loader";
 import SwipeablePanel from "components/Common/SwipeablePanel";
-import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined, DownOutlined, UpOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined } from "@ant-design/icons";
 import InfiniteScroll from "react-infinite-scroll-component";
 import lineIcon from "../../../assets/images/location.png";
 import investmentIcon from "../../../assets/icons/industrial-area.png";
@@ -94,9 +97,7 @@ const InvestmentList = () => {
     return lines.sort();
   };
 
-  // Handle line selection with "All Lines" logic
   const handleLineSelection = (values) => {
-    // If "All Lines" is selected, clear all other selections
     if (values.includes(ALL_LINES_VALUE)) {
       setSelectedLines([ALL_LINES_VALUE]);
     } else {
@@ -115,13 +116,11 @@ const InvestmentList = () => {
     const to = dayjs(toDate);
     const todayDate = dayjs(today);
 
-    // Check if from date is not greater than to date
     if (from.isAfter(to)) {
       setDateError("From date cannot be greater than to date");
       return false;
     }
 
-    // Check if to date is not greater than today
     if (to.isAfter(todayDate)) {
       setDateError("To date cannot be greater than today");
       return false;
@@ -135,7 +134,6 @@ const InvestmentList = () => {
     const newDateRange = { ...dateRange, [field]: value };
     setDateRange(newDateRange);
 
-    // Validate whenever either date changes
     if (newDateRange.from && newDateRange.to) {
       validateDateRange(newDateRange.from, newDateRange.to);
     } else {
@@ -289,7 +287,6 @@ const InvestmentList = () => {
   };
 
   const handleSearch = () => {
-    // Check if "All Lines" is selected or no lines selected
     const isAllLinesSelected = selectedLines.includes(ALL_LINES_VALUE) || selectedLines.length === 0;
     const hasLineCriteria = !isAllLinesSelected && selectedLines.length > 0;
     const hasDateCriteria = dateFilterType === "range" && dateRange.from && dateRange.to;
@@ -303,7 +300,6 @@ const InvestmentList = () => {
       return;
     }
 
-    // Validate date range if selected
     if (dateFilterType === "range" && (dateRange.from || dateRange.to)) {
       if (!validateDateRange(dateRange.from, dateRange.to)) {
         notification.error({
@@ -316,7 +312,6 @@ const InvestmentList = () => {
 
     let filtered = [...originalData];
 
-    // Apply line filter only if specific lines are selected (not "All Lines")
     if (hasLineCriteria) {
       filtered = filtered.filter(item => 
         selectedLines.includes(item.line_name || "Uncategorized")
@@ -438,11 +433,6 @@ const InvestmentList = () => {
               <Option key={line} value={line}>{line}</Option>
             ))}
           </Select>
-          {/* {(selectedLines.length === 0 || selectedLines.includes(ALL_LINES_VALUE)) && (
-            <p style={{ fontSize: "12px", color: "#8c8c8c", marginTop: "4px" }}>
-              All lines selected - will show investments from all lines
-            </p>
-          )} */}
         </div>
 
         <div>
