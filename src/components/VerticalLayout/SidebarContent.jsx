@@ -7,6 +7,7 @@ import {
   HomeOutlined,
   SettingOutlined,
   UserOutlined,
+  LockOutlined,
 } from "@ant-design/icons";
 import { Menu } from "antd";
 
@@ -46,7 +47,6 @@ const SidebarContent = (props) => {
       navigate(e.key);
       
       // Trigger sidebar collapse after navigation
-      // We'll use a custom event to communicate with parent component
       const collapseEvent = new CustomEvent('sidebarCollapse');
       window.dispatchEvent(collapseEvent);
     }
@@ -120,11 +120,18 @@ const SidebarContent = (props) => {
         label: item.label,
       })),
     },
+    {
+      key: '/reset-password',
+      icon: <LockOutlined />,
+      label: 'Reset Password',
+    },
   ];
+
+  console.log('Menu Items:', menuItems); // Debug log
 
   return (
     <React.Fragment>
-      <div className="antd-sidebar-menu">
+      <div className="antd-sidebar-menu" style={{ height: '100%', overflowY: 'auto' }}>
         <Menu
           theme="dark"
           mode="inline"
@@ -137,6 +144,7 @@ const SidebarContent = (props) => {
           style={{
             border: 'none',
             background: 'transparent',
+            height: '100%',
           }}
         />
       </div>
@@ -145,6 +153,7 @@ const SidebarContent = (props) => {
 };
 
 SidebarContent.propTypes = {
+  collapsed: PropTypes.bool,
   location: PropTypes.object,
   t: PropTypes.any,
 };
