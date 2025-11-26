@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Form, Select, Button, Card, Modal, message, Row, Col, Spin, Input } from "antd";
-import { LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
+import { LockOutlined, EyeInvisibleOutlined, EyeTwoTone, LoadingOutlined } from "@ant-design/icons";
 import { GET, POST } from "../../helpers/api_helper";
 import { USERS } from "helpers/url_helper";
 
@@ -12,7 +12,7 @@ const RESET_PASSWORD_API = "/api/users";
 const ResetPassword = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [branches, setBranches] = useState([]);
   const [lines, setLines] = useState([]);
   const [users, setUsers] = useState([]);
@@ -123,13 +123,8 @@ const ResetPassword = () => {
 
   // Validate password strength
   const validatePassword = (password) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-
-    return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar;
+    const minLength = 4;
+    return password.length >= minLength;
   };
 
   // Handle form submission
@@ -143,7 +138,7 @@ const ResetPassword = () => {
 
     // Validate password strength
     if (!validatePassword(values.new_password)) {
-      message.error("Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters");
+      message.error("Password must be at least 4 characters");
       return;
     }
 
@@ -212,14 +207,6 @@ const ResetPassword = () => {
     setFilteredUsers([]);
   };
 
-  if (dataLoading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
-
   return (
     <div style={{ padding: '0 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
@@ -248,6 +235,9 @@ const ResetPassword = () => {
                   placeholder="Select Branch"
                   onChange={handleBranchChange}
                   showSearch
+                  loading={dataLoading}
+                  notFoundContent={dataLoading ? <Spin size="small" /> : null}
+                  suffixIcon={dataLoading ? <LoadingOutlined spin /> : undefined}
                   filterOption={(input, option) =>
                     option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                   }
@@ -317,12 +307,8 @@ const ResetPassword = () => {
                 rules={[
                   { required: true, message: "Please enter a new password" },
                   {
-                    min: 8,
-                    message: "Password must be at least 8 characters"
-                  },
-                  {
-                    pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/,
-                    message: "Password must include uppercase, lowercase, numbers, and special characters"
+                    min: 4,
+                    message: "Password must be at least 4 characters"
                   }
                 ]}
               >
