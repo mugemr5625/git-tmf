@@ -34,8 +34,11 @@
 
 .view-line-actions {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 10px;
+  margin-top: 24px;
+  padding: 16px 0;
 }
 
 .view-line-switch-label {
