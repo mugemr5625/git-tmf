@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
-import { Form, Input, Button, Select, notification,Divider,Space } from "antd";
+import { Form, Input, Button, Select, notification, Divider, Space } from "antd";
 import { ToastContainer } from "react-toastify";
 import Loader from "components/Common/Loader";
 import { LINE, ADD_BRANCH } from "helpers/url_helper";
 import { POST, GET } from "helpers/api_helper";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-// import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "helpers/errorMessages";
+import "./AddLine.css";
 
 const { Option } = Select;
 
@@ -29,30 +30,29 @@ const AddLine = () => {
     getBranchList();
   }, []);
 
- const getLineDetails = useCallback(async () => {
-  try {
-    setLoader(true);
-    const response = await GET(`${LINE}${params.id}`);
-    if (response?.status === 200) {
-      setFormData(response?.data || []);
-      form.setFieldsValue(response?.data);
-    } else {
+  const getLineDetails = useCallback(async () => {
+    try {
+      setLoader(true);
+      const response = await GET(`${LINE}${params.id}`);
+      if (response?.status === 200) {
+        setFormData(response?.data || []);
+        form.setFieldsValue(response?.data);
+      } else {
+        setFormData([]);
+      }
+      setLoader(false);
+    } catch (error) {
       setFormData([]);
+      setLoader(false);
+      console.log(error);
     }
-    setLoader(false);
-  } catch (error) {
-    setFormData([]);
-    setLoader(false);
-    console.log(error);
-  }
-}, [params.id, form]);
+  }, [params.id, form]);
 
-useEffect(() => {
-  if (params.id) {
-    getLineDetails();
-  }
-}, [params.id, getLineDetails]);
-
+  useEffect(() => {
+    if (params.id) {
+      getLineDetails();
+    }
+  }, [params.id, getLineDetails]);
 
   const getBranchList = async () => {
     try {
@@ -80,7 +80,7 @@ useEffect(() => {
           message: "Line",
           description:
             response?.data?.lineName?.[0] ||
-            `Line is not ${params.id ? "update" : "create"}.Please try again`,
+            (params.id ? ERROR_MESSAGES.LINE.UPDATE_FAILED : ERROR_MESSAGES.LINE.CREATE_FAILED),
           duration: 0,
         });
         return;
@@ -104,9 +104,9 @@ useEffect(() => {
         message: `${response?.data?.lineName?.toUpperCase()} Line ${
           params.id ? "Update" : "Create"
         }!`,
-        description: `The line has been ${
-          params.id ? "updated" : "created"
-        } successfully.`,
+        description: params.id 
+          ? SUCCESS_MESSAGES.LINE.UPDATED 
+          : SUCCESS_MESSAGES.LINE.CREATED,
         duration: 0,
       });
 
@@ -114,7 +114,7 @@ useEffect(() => {
     } catch (error) {
       notification.error({
         message: "Line",
-        description: "The line is not created.",
+        description: ERROR_MESSAGES.LINE.OPERATION_FAILED,
         duration: 0,
       });
     } finally {
@@ -126,73 +126,22 @@ useEffect(() => {
     setFormData({ ...formData, ...allValues });
   };
 
-  // const resetForm = () => {
-  //   setFormData({
-  //     lineName: "",
-  //     lineType: "",
-  //     branch: "",
-  //     installment: null,
-  //     badinstallment: null,
-  //   });
-  //   form.setFieldsValue({
-  //     lineName: "",
-  //     lineType: "",
-  //     branch: "",
-  //     installment: null,
-  //     badinstallment: null,
-  //   });
-  // };
-
   const options = [
     { label: "Daily", value: "daily" },
     { label: "Weekly", value: "weekly" },
     { label: "Monthly", value: "monthly" },
   ];
 
-  // const isFormEmpty = () => {
-  //   return (
-  //     !formData.lineName &&
-  //     !formData.lineType &&
-  //     !formData.branch &&
-  //     !formData.installment &&
-  //     !formData.badinstallment
-  //   );
-  // };
-
   return (
-      <>
+    <>
       {loader && <Loader />}
 
-      <div
-        className="page-content"
-        style={{
-          marginRight: "10px",
-          marginLeft: "-10px",
-          maxWidth: "100%",
-        }}
-      >
-        <div
-          className="container-fluid"
-          style={{
-            marginTop: -100,
-            padding: 0,
-          }}
-        >
+      <div className="add-line-page-content">
+        <div className="add-line-container-fluid">
           <div className="row">
             <div className="col-md-12">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "20px",
-                  gap: "10px",
-                }}
-              >
-                {/* <ArrowLeftOutlined
-                  onClick={() => navigate("/line")}
-                  style={{ cursor: "pointer", fontSize: "18px" }}
-                /> */}
-                <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 600 }}>
+              <div className="add-line-header">
+                <h2 className="add-line-title">
                   {params.id ? "Edit Line" : "Add Line"}
                 </h2>
               </div>
@@ -203,18 +152,19 @@ useEffect(() => {
                 onFinish={onFinish}
                 onValuesChange={onValuesChange}
                 initialValues={formData}
-                style={{ padding: 0, marginRight: "-20px", marginBottom: "-30px" }}
+                className="add-line-form"
               >
-                <div className="container" style={{ padding: 0 }}>
-                 
-
+                <div className="container add-line-form-container">
                   {/* Branch and Line Name */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <Form.Item
                         label="Branch"
                         name="branch"
-                        rules={[{ required: true, message: "Branch is required" }]}
+                        rules={[{ 
+                          required: true, 
+                          message: ERROR_MESSAGES.LINE.BRANCH_REQUIRED 
+                        }]}
                       >
                         <Select
                           placeholder="Select Branch"
@@ -236,7 +186,10 @@ useEffect(() => {
                       <Form.Item
                         label="Line Name"
                         name="lineName"
-                        rules={[{ required: true, message: "Line Name is required" }]}
+                        rules={[{ 
+                          required: true, 
+                          message: ERROR_MESSAGES.LINE.LINE_NAME_REQUIRED 
+                        }]}
                       >
                         <Input placeholder="Enter line name" size="large" />
                       </Form.Item>
@@ -249,7 +202,10 @@ useEffect(() => {
                       <Form.Item
                         label="Line Type"
                         name="lineType"
-                        rules={[{ required: true, message: "Line Type is required" }]}
+                        rules={[{ 
+                          required: true, 
+                          message: ERROR_MESSAGES.LINE.LINE_TYPE_REQUIRED 
+                        }]}
                       >
                         <Select placeholder="Select Line Type" size="large">
                           {options.map((option) => (
@@ -266,7 +222,10 @@ useEffect(() => {
                         label="Installment"
                         name="installment"
                         rules={[
-                          { required: true, message: "Installment is required" },
+                          { 
+                            required: true, 
+                            message: ERROR_MESSAGES.LINE.INSTALLMENT_REQUIRED 
+                          },
                         ]}
                       >
                         <Input
@@ -287,7 +246,7 @@ useEffect(() => {
                         rules={[
                           {
                             required: true,
-                            message: "No of bad installments is required",
+                            message: ERROR_MESSAGES.LINE.BAD_INSTALLMENT_REQUIRED,
                           },
                         ]}
                       >
@@ -300,7 +259,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <Divider style={{ borderTop: "2px solid #d9d9d9" }} />
+                  <Divider className="add-line-divider" />
 
                   {/* Buttons */}
                   <div className="text-center mt-4">
@@ -308,16 +267,6 @@ useEffect(() => {
                       <Button type="primary" htmlType="submit" size="large">
                         {params.id ? "Update Line" : "Add Line"}
                       </Button>
-
-                      {/* {!isFormEmpty() && (
-                        <Button
-                          size="large"
-                          onClick={resetForm}
-                          icon={<ReloadOutlined />}
-                        >
-                          Reset
-                        </Button>
-                      )} */}
 
                       <Button
                         size="large"
