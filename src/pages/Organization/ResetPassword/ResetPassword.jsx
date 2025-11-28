@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Form, Select, Button, Card, Modal, message, Row, Col, Spin, Input } from "antd";
 import { LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { GET, POST } from "../../helpers/api_helper";
-import { USERS } from "helpers/url_helper";
+import { USERS } from "../../helpers/url_helper";
 
 const { Option } = Select;
 
