@@ -125,6 +125,11 @@ const SidebarContent = (props) => {
       icon: <LockOutlined />,
       label: 'Reset Password',
     },
+     {
+      key: '/view-customer',
+      icon: <LockOutlined />,
+      label: 'Customer',
+    },
   ];
 
   console.log('Menu Items:', menuItems); // Debug log
