@@ -35,7 +35,8 @@ import InvestmentList from 'pages/Organization/Investments/InvestmentList';
 
 //Reset module 
 import ResetPassword from '../pages/ResetPassword/ResetPassword';
-
+import AddCustomer from 'pages/Organization/Customer/AddCustomer';
+import ViewCustomer from 'pages/Organization/Customer/ViewCustomer';
 
 const authProtectedRoutes = [
   { path: '/home', component: <Dashboard /> },
@@ -81,6 +82,9 @@ const authProtectedRoutes = [
   { path: '/new-loan-disbursement', component: <DisburseLoanForm /> },
   { path: '/new-loan-disbursement/:id', component: <DisburseLoanForm /> },
   {path:"/reset-password", component: <ResetPassword /> },
+  {path:"/add-customer", component: <AddCustomer /> },
+  {path:"/customer/edit/:id", component: <AddCustomer /> },
+  {path:"/view-customer", component: <ViewCustomer /> },
 ];
 
 const publicRoutes = [
