@@ -7,7 +7,7 @@ import { GET, DELETE, POST } from "helpers/api_helper";
 import { AREA, COLUMNCHANGE, SELECTEDCOLUMN } from "helpers/url_helper";
 import Loader from "components/Common/Loader";
 import SwipeablePanel from "components/Common/SwipeablePanel";
-import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined, EnvironmentOutlined } from "@ant-design/icons";
+import { EllipsisOutlined, SearchOutlined, ReloadOutlined, PlusOutlined } from "@ant-design/icons";
 import AreaCollapseContent from "components/Common/AreaCollapseContent";
 import { Switch, FloatButton } from "antd";
 import reorderIcon from "../../../assets/icons/up-and-down-arrow.png";
@@ -865,103 +865,108 @@ const ViewArea = () => {
                         )
                       }
                       className="view-area-list"
-                      renderItem={(area) => {
-                        const isExpanded = expandedAreas[lineName + '-' + area.id];
+                      // Replace the renderItem section in the List component (around line 550-650) with this:
 
-                        return (
-                          <div
-                            key={area.id}
-                            id={'area-item-' + area.id}
-                            className="view-area-list-item-wrapper"
-                          >
-                            {isMobile ? (
-                              <SwipeablePanel
-                                item={area}
-                                index={area.id}
-                                titleKey="areaName"
-                                name="area"
-                                avatarSrc={areaIcon}
-                                onSwipeRight={!isExpanded ? () => handleEditArea(area) : undefined}
-                                onSwipeLeft={!isExpanded ? () => onDelete(area) : undefined}
-                                isExpanded={isExpanded}
-                                onExpandToggle={() => handleAreaAction(lineName, area.id)}
-                                renderContent={() => (
-                                  isExpanded ? (
-                                    <AreaCollapseContent area={area} />
-                                  ) : null
-                                )}
-                                isSwipeOpen={openSwipeId === area.id}
-                                onSwipeStateChange={(isOpen) => handleSwipeStateChange(area.id, isOpen)}
-                              />
-                            ) : (
-                              <>
-                                <List.Item
-                                  className={isExpanded ? "view-area-list-item view-area-list-item-expanded" : "view-area-list-item"}
-                                >
-                                  <List.Item.Meta
-                                    avatar={
-                                      <div className="view-area-avatar-container">
-                                        <img
-                                          src={areaIcon}
-                                          alt="area-icon"
-                                          className="view-area-avatar-icon"
-                                        />
-                                      </div>
-                                    }
-                                    title={
-                                      <div
-                                        onClick={() => handleAreaAction(lineName, area.id)}
-                                        className="view-area-item-title-container"
-                                      >
-                                        <span className="view-area-item-title">
-                                          {area.areaName}
-                                        </span>
-                                        <Dropdown
-                                          overlay={
-                                            <Menu>
-                                              <Menu.Item
-                                                key="edit"
-                                                onClick={(e) => {
-                                                  e.domEvent.stopPropagation();
-                                                  handleEditArea(area);
-                                                }}
-                                              >
-                                                Edit
-                                              </Menu.Item>
-                                              <Menu.Item
-                                                key="delete"
-                                                danger
-                                                onClick={(e) => {
-                                                  e.domEvent.stopPropagation();
-                                                  onDelete(area);
-                                                }}
-                                              >
-                                                Delete
-                                              </Menu.Item>
-                                            </Menu>
-                                          }
-                                          trigger={["click"]}
-                                        >
-                                          <EllipsisOutlined
-                                            className="view-area-ellipsis-icon"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                        </Dropdown>
-                                      </div>
-                                    }
-                                  />
-                                </List.Item>
+renderItem={(area, index) => {
+  const isExpanded = expandedAreas[lineName + '-' + area.id];
+  const lineIndex = index + 1; // Separate index for each line
 
-                                {isExpanded && (
-                                  <div className="view-area-collapse-content">
-                                    <AreaCollapseContent area={area} />
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        );
-                      }}
+  return (
+    <div
+      key={area.id}
+      id={'area-item-' + area.id}
+      className="view-area-list-item-wrapper"
+    >
+      {isMobile ? (
+        <SwipeablePanel
+          item={{...area, lineIndex}} // Pass lineIndex to the area object
+          index={area.id}
+          titleKey="areaName"
+          name="area"
+          avatarSrc={areaIcon}
+          onSwipeRight={!isExpanded ? () => handleEditArea(area) : undefined}
+          onSwipeLeft={!isExpanded ? () => onDelete(area) : undefined}
+          isExpanded={isExpanded}
+          onExpandToggle={() => handleAreaAction(lineName, area.id)}
+          renderContent={() => (
+            isExpanded ? (
+              <AreaCollapseContent area={area} />
+            ) : null
+          )}
+          isSwipeOpen={openSwipeId === area.id}
+          onSwipeStateChange={(isOpen) => handleSwipeStateChange(area.id, isOpen)}
+        />
+      ) : (
+        <>
+          <List.Item
+            className={isExpanded ? "view-area-list-item view-area-list-item-expanded" : "view-area-list-item"}
+          >
+            <List.Item.Meta
+              avatar={
+                <div className="view-area-avatar-container">
+                  
+                  <img
+                    src={areaIcon}
+                    alt="area-icon"
+                    className="view-area-avatar-icon"
+                  />
+                  <span className="view-area-index-badge">{lineIndex}</span>
+                </div>
+              }
+              title={
+                <div
+                  onClick={() => handleAreaAction(lineName, area.id)}
+                  className="view-area-item-title-container"
+                >
+                  <span className="view-area-item-title">
+                    {area.areaName}
+                  </span>
+                  <Dropdown
+                    overlay={
+                      <Menu>
+                        <Menu.Item
+                          key="edit"
+                          onClick={(e) => {
+                            e.domEvent.stopPropagation();
+                            handleEditArea(area);
+                          }}
+                        >
+                          Edit
+                        </Menu.Item>
+                        <Menu.Item
+                          key="delete"
+                          danger
+                          onClick={(e) => {
+                            e.domEvent.stopPropagation();
+                            onDelete(area);
+                          }}
+                        >
+                          Delete
+                        </Menu.Item>
+                      </Menu>
+                    }
+                    trigger={["click"]}
+                  >
+                    <EllipsisOutlined
+                      className="view-area-ellipsis-icon"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Dropdown>
+                </div>
+              }
+            />
+          </List.Item>
+
+          {isExpanded && (
+            <div className="view-area-collapse-content">
+              <AreaCollapseContent area={area} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}}
                     />
                   </InfiniteScroll>
                 </div>

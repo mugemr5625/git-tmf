@@ -4,9 +4,9 @@ import { ToastContainer } from "react-toastify";
 import Loader from "components/Common/Loader";
 import { LINE, ADD_BRANCH, AREA } from "helpers/url_helper";
 import { POST, GET } from "helpers/api_helper";
-import { useParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
-// import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useParams, useNavigate } from "react-router-dom";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES, NOTIFICATION_TITLES } from "helpers/errorMessages";
+import "./AddArea.css";
 
 const { Option } = Select;
 
@@ -137,10 +137,10 @@ const AddArea = () => {
       setLoader(false);
       if (response.status >= 400) {
         notification.error({
-          message: "Area",
-          description: `The area is not ${
-            params?.id ? "updated" : "created"
-          }. Please try again`,
+          message: NOTIFICATION_TITLES.AREA,
+          description: params?.id 
+            ? ERROR_MESSAGES.AREA.UPDATE_FAILED 
+            : ERROR_MESSAGES.AREA.CREATE_FAILED,
           duration: 0,
         });
         return;
@@ -158,20 +158,20 @@ const AddArea = () => {
       });
       
       notification.success({
-        message: `${formData?.areaName?.toUpperCase()} Area ${
+        message: `${formData?.areaName?.toUpperCase()} ${NOTIFICATION_TITLES.AREA} ${
           params.id ? "Update" : "Create"
         }!`,
-        description: `The area has been ${
-          params?.id ? "updated" : "created"
-        } successfully.`,
+        description: params?.id 
+          ? SUCCESS_MESSAGES.AREA.UPDATED 
+          : SUCCESS_MESSAGES.AREA.CREATED,
         duration: 0,
       });
 
       navigate(`/area`);
     } catch (error) {
       notification.error({
-        message: "Area",
-        description: "The area is not created.",
+        message: NOTIFICATION_TITLES.AREA,
+        description: ERROR_MESSAGES.AREA.OPERATION_FAILED,
         duration: 0,
       });
     } finally {
@@ -193,57 +193,16 @@ const AddArea = () => {
     setFormData({ ...formData, ...allValues });
   };
 
-  // const resetForm = () => {
-  //   setFormData({
-  //     line_id: "",
-  //     areaName: "",
-  //     branch_id: "",
-  //   });
-  //   form.setFieldsValue({
-  //     line_id: "",
-  //     areaName: "",
-  //     branch_id: "",
-  //   });
-  // };
-
-  // const isFormEmpty = () => {
-  //   return !formData.line_id && !formData.branch_id && !formData.areaName;
-  // };
-
   return (
     <>
       {loader && <Loader />}
 
-      <div
-        className="page-content"
-        style={{
-          marginRight: "10px",
-          marginLeft: "-10px",
-          maxWidth: "100%",
-        }}
-      >
-        <div
-          className="container-fluid"
-          style={{
-            marginTop: -100,
-            padding: 0,
-          }}
-        >
+      <div className="add-area-page-content">
+        <div className="add-area-container-fluid">
           <div className="row">
             <div className="col-md-12">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "20px",
-                  gap: "10px",
-                }}
-              >
-                {/* <ArrowLeftOutlined
-                  onClick={() => navigate("/area")}
-                  style={{ cursor: "pointer", fontSize: "18px" }}
-                /> */}
-                <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 600 }}>
+              <div className="add-area-header">
+                <h2 className="add-area-title">
                   {params.id ? "Edit Area" : "Add Area"}
                 </h2>
               </div>
@@ -254,9 +213,9 @@ const AddArea = () => {
                 onFinish={onFinish}
                 onValuesChange={onValuesChange}
                 initialValues={formData}
-                style={{ padding: 0, marginRight: "-20px", marginBottom: "-30px" }}
+                className="add-area-form"
               >
-                <div className="container" style={{ padding: 0 }}>
+                <div className="container add-area-form-container">
                   {/* Branch and Line */}
                   <div className="row mb-2">
                     <div className="col-md-6">
@@ -266,7 +225,7 @@ const AddArea = () => {
                         rules={[
                           {
                             required: true,
-                            message: "Branch is required",
+                            message: ERROR_MESSAGES.AREA.BRANCH_REQUIRED,
                           },
                         ]}
                       >
@@ -294,7 +253,7 @@ const AddArea = () => {
                         rules={[
                           {
                             required: true,
-                            message: "Line is required",
+                            message: ERROR_MESSAGES.AREA.LINE_REQUIRED,
                           },
                         ]}
                       >
@@ -325,7 +284,7 @@ const AddArea = () => {
                         rules={[
                           {
                             required: true,
-                            message: "Area Name is required",
+                            message: ERROR_MESSAGES.AREA.AREA_NAME_REQUIRED,
                           },
                         ]}
                       >
@@ -334,7 +293,7 @@ const AddArea = () => {
                     </div>
                   </div>
 
-                  <Divider style={{ borderTop: "2px solid #d9d9d9" }} />
+                  <Divider className="add-area-divider" />
 
                   {/* Buttons */}
                   <div className="text-center mt-4">
@@ -342,16 +301,6 @@ const AddArea = () => {
                       <Button type="primary" htmlType="submit" size="large">
                         {params.id ? "Update Area" : "Add Area"}
                       </Button>
-
-                      {/* {!isFormEmpty() && (
-                        <Button
-                          size="large"
-                          onClick={resetForm}
-                          icon={<ReloadOutlined />}
-                        >
-                          Reset
-                        </Button>
-                      )} */}
 
                       <Button
                         size="large"
