@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Form, Input, Button, Select, notification, Divider, Space, InputNumber, Tabs, Modal } from "antd";
-import { UserOutlined, PhoneOutlined, MailOutlined, IdcardOutlined, EnvironmentOutlined, FileTextOutlined, UserAddOutlined, ReloadOutlined, PlusOutlined, MinusOutlined,HomeOutlined } from '@ant-design/icons';
+import { UserOutlined, PhoneOutlined, MailOutlined, IdcardOutlined, EnvironmentOutlined, FileTextOutlined, UserAddOutlined, ReloadOutlined, PlusOutlined, MinusOutlined, HomeOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from "react-router-dom";
 import Loader from "components/Common/Loader";
 import { GET, POST, PUT, DELETE } from "helpers/api_helper";
@@ -10,7 +10,6 @@ import AddCustomerDocument from "./AddCustomerDocument";
 import professionIcon from '../../../assets/icons/businessman.png'
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 
-// Add this constant for map sizing outside the component
 const mapContainerStyle = {
     width: '100%',
     height: '400px'
@@ -31,8 +30,16 @@ const AddCustomer = () => {
     const [nextCustomerId, setNextCustomerId] = useState(null);
     const [currentCustomerId, setCurrentCustomerId] = useState(null);
     const [mapModalVisible, setMapModalVisible] = useState(false);
-    const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 }); // Default to India
+    const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 });
     const [selectedLocation, setSelectedLocation] = useState(null);
+    
+    // LocalStorage states
+    const [savedBranchName, setSavedBranchName] = useState(null);
+    const [savedLineName, setSavedLineName] = useState(null);
+    const [savedAreaId, setSavedAreaId] = useState(null);
+    const [savedAreaName, setSavedAreaName] = useState(null);
+    const [isFromLocalStorage, setIsFromLocalStorage] = useState(false);
+
     const [form] = Form.useForm();
     const params = useParams();
     const navigate = useNavigate();
@@ -89,6 +96,53 @@ const AddCustomer = () => {
                 setAreaList(uniqueAreas);
                 setFilteredLineList(uniqueLines);
                 setFilteredAreaList(uniqueAreas);
+
+                // Check for saved selections in localStorage
+                const storedLineName = localStorage.getItem('selected_line_name');
+                const storedAreaId = localStorage.getItem('selected_area_id');
+                const storedAreaName = localStorage.getItem('selected_area_name');
+                const storedBranchName = localStorage.getItem('selected_branch_name');
+
+                if (storedLineName && storedAreaId && storedBranchName && !params.id) {
+                    // Set saved values
+                    setSavedBranchName(storedBranchName);
+                    setSavedLineName(storedLineName);
+                    setSavedAreaId(parseInt(storedAreaId));
+                    setSavedAreaName(storedAreaName);
+                    setIsFromLocalStorage(true);
+
+                    // Find the branch ID from branch name
+                    const matchedBranch = uniqueBranches.find(
+                        branch => branch.branch_name === storedBranchName
+                    );
+
+                    // Find the line ID from line name
+                    const matchedLine = uniqueLines.find(
+                        line => line.name === storedLineName && 
+                               line.branch_id === matchedBranch?.id
+                    );
+
+                    if (matchedBranch && matchedLine) {
+                        // Set form values
+                        form.setFieldsValue({
+                            branch: matchedBranch.id,
+                            line: matchedLine.id,
+                            area: parseInt(storedAreaId)
+                        });
+
+                        // Filter line and area lists
+                        const filteredLines = uniqueLines.filter(
+                            line => line.branch_id === matchedBranch.id
+                        );
+                        setFilteredLineList(filteredLines);
+
+                        const filteredAreas = uniqueAreas.filter(
+                            area => area.branch_id === matchedBranch.id && 
+                                   area.line_id === matchedLine.id
+                        );
+                        setFilteredAreaList(filteredAreas);
+                    }
+                }
             }
             setLoader(false);
         } catch (error) {
@@ -100,27 +154,23 @@ const AddCustomer = () => {
             });
             console.error(error);
         }
-    }, []);
+    }, [params.id, form]);
 
-    // Fetch all customers to get the next customer ID
     const getAllCustomers = useCallback(async () => {
         try {
             const response = await GET('/api/customers/');
             if (response?.status === 200) {
                 const customers = response.data;
                 
-                // Find the highest ID
                 if (customers && customers.length > 0) {
                     const maxId = Math.max(...customers.map(customer => customer.customer_order));
                     setNextCustomerId(maxId + 1);
                 } else {
-                    // If no customers exist, start from 1
                     setNextCustomerId(1);
                 }
             }
         } catch (error) {
             console.error('Error fetching customers:', error);
-            // Set default if there's an error
             setNextCustomerId(1);
         }
     }, []);
@@ -169,53 +219,89 @@ const AddCustomer = () => {
         form.setFieldsValue({ area: undefined });
     };
 
-    const getCustomerDetails = useCallback(async () => {
-        try {
-            setLoader(true);
-            const response = await GET(`/api/customers/${params.id}/`);
-            if (response?.status === 200) {
-                const data = response?.data;
-                form.setFieldsValue(data);
-                setIsPersonalInfoSubmitted(true);
-                setCurrentCustomerId(data?.id);
-                
-                // Set selected location if latitude and longitude exist
-                if (data?.latitude && data?.longitude) {
-                    setSelectedLocation({
-                        lat: data.latitude,
-                        lng: data.longitude,
-                        address: `${data.latitude}, ${data.longitude}`
-                    });
-                }
+   // Replace the getCustomerDetails function with this updated version:
+
+const getCustomerDetails = useCallback(async () => {
+    try {
+        setLoader(true);
+        const response = await GET(`/api/customers/${params.id}/`);
+        if (response?.status === 200) {
+            const data = response?.data;
+            
+            // Find names for branch, line, and area from IDs
+            const customerBranch = branchList.find(b => b.id === data.branch);
+            const customerLine = lineList.find(l => l.id === data.line);
+            const customerArea = areaList.find(a => a.id === data.area);
+            
+            // Store the names for display
+            if (customerBranch) setSavedBranchName(customerBranch.branch_name);
+            if (customerLine) setSavedLineName(customerLine.name);
+            if (customerArea) setSavedAreaName(customerArea.name);
+            
+            // FIX: Ensure reference_contacts always has at least one field
+            if (!data.reference_contacts || data.reference_contacts.length === 0) {
+                data.reference_contacts = [{ reference_number: '' }];
             }
-            setLoader(false);
-        } catch (error) {
-            setLoader(false);
-            notification.error({
-                message: 'Error',
-                description: 'Failed to fetch customer details',
-                duration: 3,
-            });
-            console.error(error);
+            
+            form.setFieldsValue(data);
+            setIsPersonalInfoSubmitted(true);
+            setCurrentCustomerId(data?.id);
+            
+            if (data?.latitude && data?.longitude) {
+                setSelectedLocation({
+                    lat: data.latitude,
+                    lng: data.longitude,
+                    address: `${data.latitude}, ${data.longitude}`
+                });
+            }
         }
-    }, [params.id, form]);
+        setLoader(false);
+    } catch (error) {
+        setLoader(false);
+        notification.error({
+            message: 'Error',
+            description: 'Failed to fetch customer details',
+            duration: 3,
+        });
+        console.error(error);
+    }
+}, [params.id, form, branchList, lineList, areaList]);
+
+
+// ALTERNATIVE SOLUTION: Update the useEffect that initializes the form
+// Replace the existing useEffect with this:
+
+useEffect(() => {
+    getAreaList();
+    
+    // Always initialize reference_contacts with at least one field
+    if (!params.id) {
+        getAllCustomers();
+    }
+    
+    // Initialize form with one reference contact field (for both add and edit)
+    form.setFieldsValue({
+        reference_contacts: [{ reference_number: '' }]
+    });
+}, [params.id, getAllCustomers, getAreaList, form]);
 
     useEffect(() => {
         getAreaList();
         
-        // Fetch customers to get next ID only when adding new customer
         if (!params.id) {
             getAllCustomers();
-            // Initialize with one reference contact
             form.setFieldsValue({
                 reference_contacts: [{ reference_number: '' }]
             });
         }
-        
-        if (params.id) {
+    }, [params.id, getAllCustomers, getAreaList, form]);
+
+    // Separate useEffect for getting customer details after area list is loaded
+    useEffect(() => {
+        if (params.id && branchList.length > 0 && lineList.length > 0 && areaList.length > 0) {
             getCustomerDetails();
         }
-    }, [params.id, getCustomerDetails, getAreaList, getAllCustomers]);
+    }, [params.id, branchList, lineList, areaList, getCustomerDetails]);
 
     const openMapModal = () => {
         if (selectedLocation) {
@@ -282,76 +368,124 @@ const AddCustomer = () => {
         }
     };
 
-    const onFinish = async (values) => {
-        setLoader(true);
-        try {
-            const payload = {
-                customer_name: values.customer_name,
-                mobile_number: values.mobile_number,
-                alternate_mobile_number: values.alternate_mobile_number,
-                email_id: values.email_id,
-                aadhaar_id: values.aadhaar_id,
-                pan_number: values.pan_number,
-                address: values.address,
-                profession: values.profession,
-                line: values.line,
-                area: values.area,
-                branch: values.branch,
-                latitude: values.latitude,
-                longitude: values.longitude,
-                customer_order: nextCustomerId,
-                reference_contacts: values.reference_contacts || [],
-            };
+ // Replace the onFinish function with this updated version:
 
-            let response;
-            if (params.id) {
-                response = await PUT(`/api/customers/${params.id}/`, payload);
-            } else {
-                response = await POST('/api/customers/', payload);
-            }
+const onFinish = async (values) => {
+    setLoader(true);
+    try {
+        // Filter out empty reference contacts
+        const filteredReferenceContacts = (values.reference_contacts || []).filter(
+            contact => contact.reference_number && contact.reference_number.trim() !== ''
+        );
 
-            setLoader(false);
+        const payload = {
+            customer_name: values.customer_name,
+            mobile_number: values.mobile_number,
+            alternate_mobile_number: values.alternate_mobile_number || null,
+            email_id: values.email_id,
+            aadhaar_id: values.aadhaar_id,
+            pan_number: values.pan_number,
+            address: values.address,
+            profession: values.profession,
+            line: values.line,
+            area: values.area,
+            branch: values.branch,
+            latitude: values.latitude ? String(values.latitude) : null,
+            longitude: values.longitude ? String(values.longitude) : null,
+            customer_order: params.id ? values.customer_order : nextCustomerId,
+            reference_contacts: filteredReferenceContacts,
+        };
 
-            if (response.status === 400) {
-                notification.error({
-                    message: 'Customer',
-                    description: response?.data?.customer_name?.[0] || 
-                        (params.id ? 'Failed to update customer' : 'Failed to create customer'),
-                    duration: 0,
-                });
-                return;
-            }
+        console.log('Payload being sent:', payload);
 
-            notification.success({
-                message: `${values.customer_name} ${params.id ? 'Updated' : 'Added'}!`,
-                description: params.id 
-                    ? 'Customer details updated successfully' 
-                    : 'Customer added successfully. You can now upload documents.',
-                duration: 3,
-            });
-
-            if (!params.id) {
-                form.setFieldsValue({ id: response?.data?.id });
-                setCurrentCustomerId(response?.data?.id);
-                setIsPersonalInfoSubmitted(true);
-                setActiveTab("2");
-            } else {
-                navigate('/customers');
-            }
-        } catch (error) {
-            notification.error({
-                message: 'Customer',
-                description: 'An error occurred. Please try again.',
-                duration: 0,
-            });
-            setLoader(false);
+        let response;
+        if (params.id) {
+            response = await PUT(`/api/customers/${params.id}/`, payload);
+        } else {
+            response = await POST('/api/customers/', payload);
         }
-    };
+
+        setLoader(false);
+
+        if (response.status === 400) {
+            // Handle validation errors
+            const errorMessages = [];
+            
+            if (response?.data) {
+                Object.keys(response.data).forEach(key => {
+                    if (Array.isArray(response.data[key])) {
+                        errorMessages.push(`${key}: ${response.data[key][0]}`);
+                    } else {
+                        errorMessages.push(`${key}: ${response.data[key]}`);
+                    }
+                });
+            }
+
+            notification.error({
+                message: 'Validation Error',
+                description: errorMessages.length > 0 
+                    ? errorMessages.join('\n')
+                    : (params.id ? 'Failed to update customer' : 'Failed to create customer'),
+                duration: 5,
+            });
+            return;
+        }
+
+        notification.success({
+            message: `${values.customer_name} ${params.id ? 'Updated' : 'Added'}!`,
+            description: params.id 
+                ? 'Customer details updated successfully. You can now manage documents.' 
+                : 'Customer added successfully. You can now upload documents.',
+            duration: 3,
+        });
+
+        // FIX: In both add and edit mode, go to document upload tab
+        if (!params.id) {
+            // Add mode
+            form.setFieldsValue({ id: response?.data?.id });
+            setCurrentCustomerId(response?.data?.id);
+            setIsPersonalInfoSubmitted(true);
+            setActiveTab("2");
+        } else {
+            // Edit mode - also go to tab 2 instead of navigating away
+            setCurrentCustomerId(params.id);
+            setIsPersonalInfoSubmitted(true);
+            setActiveTab("2");
+        }
+    } catch (error) {
+        console.error('Submit error:', error);
+        notification.error({
+            message: 'Error',
+            description: error?.response?.data?.detail || 'An error occurred. Please try again.',
+            duration: 5,
+        });
+        setLoader(false);
+    }
+};
     
     const handleReset = () => {
         form.resetFields();
-        setFilteredLineList(lineList);
-        setFilteredAreaList(areaList);
+        
+        // If values are from localStorage, restore them
+        if (isFromLocalStorage && savedBranchName && savedLineName && savedAreaId) {
+            const matchedBranch = branchList.find(
+                branch => branch.branch_name === savedBranchName
+            );
+            const matchedLine = lineList.find(
+                line => line.name === savedLineName
+            );
+
+            if (matchedBranch && matchedLine) {
+                form.setFieldsValue({
+                    branch: matchedBranch.id,
+                    line: matchedLine.id,
+                    area: savedAreaId
+                });
+            }
+        } else {
+            setFilteredLineList(lineList);
+            setFilteredAreaList(areaList);
+        }
     };
 
     const handleDelete = async () => {
@@ -409,49 +543,25 @@ const AddCustomer = () => {
                     <UserAddOutlined />
                     Personal Info
                 </span>
-                
             ),
-           children: (
-    <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        className="add-customer-form"
-    >
-        <div className="container add-customer-form-container">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
-                    Personal Information
-                </h3>
-                <Button
-                    icon={<ReloadOutlined />}
-                    onClick={handleReset}
-                    title="Reset to Original"
-                />
-            </div>
-
-            {/* Customer ID Field - Only for new customers */}
-            {!params.id && nextCustomerId && (
-                <div className="row mb-2">
-                    <div className="col-md-6">
-                        {/* <Form.Item
-                            label="Customer Order"
-                        >
-                            <Input 
-                                value={nextCustomerId}
-                                placeholder="Auto-generated ID"
-                                size="large"
-                                disabled
-                                style={{ 
-                                    backgroundColor: '#f5f5f5',
-                                    color: '#000',
-                                    fontWeight: '600'
-                                }}
+            children: (
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinish={onFinish}
+                    className="add-customer-form"
+                >
+                    <div className="container add-customer-form-container">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
+                                Personal Information
+                            </h3>
+                            <Button
+                                icon={<ReloadOutlined />}
+                                onClick={handleReset}
+                                title="Reset to Original"
                             />
-                        </Form.Item> */}
-                    </div>
-                </div>
-            )}
+                        </div>
 
                         <div className="row mb-2">
                             <div className="col-md-6">
@@ -536,12 +646,13 @@ const AddCustomer = () => {
                                     ]}
                                 >
                                     <Input 
-                                    prefix={
+                                        prefix={
                                             <img 
                                                 src={professionIcon} 
                                                 alt="Profession Icon" 
                                                 style={{ width: '16px', height: '16px', marginRight: '8px' }}
-                                            />}
+                                            />
+                                        }
                                         placeholder="Enter profession" 
                                         size="large"
                                     />
@@ -577,7 +688,7 @@ const AddCustomer = () => {
                                     ]}
                                 >
                                     <Input 
-                                     prefix={<IdcardOutlined />}
+                                        prefix={<IdcardOutlined />}
                                         placeholder="ABCDE1234F" 
                                         size="large"
                                         maxLength={10}
@@ -588,7 +699,6 @@ const AddCustomer = () => {
 
                             <div className="col-md-6">
                                 <Form.Item
-                               
                                     label="Address"
                                     name="address"
                                     rules={[
@@ -596,8 +706,7 @@ const AddCustomer = () => {
                                     ]}
                                 >
                                     <TextArea 
-                                    //  prefix = {<HomeOutlined />}
-                                    icon =  {<HomeOutlined />}
+                                     prefix={<IdcardOutlined />}
                                         placeholder="Enter complete address" 
                                         rows={2}
                                         size="large"
@@ -612,89 +721,194 @@ const AddCustomer = () => {
                             Location Details
                         </h3>
 
+                        {/* Display info banner when fields are from localStorage */}
+                        {isFromLocalStorage && !params.id && (
+                            <div style={{ 
+                                marginBottom: '16px', 
+                                padding: '12px', 
+                                background: '#e6f7ff', 
+                                border: '1px solid #91d5ff',
+                                borderRadius: '4px'
+                            }}>
+                                <strong>Note:</strong> Branch, Line, and Area are pre-selected from your last selection and cannot be changed.
+                            </div>
+                        )}
+
+                        {params.id && (
+                            <div style={{ 
+                                marginBottom: '16px', 
+                                padding: '12px', 
+                                background: '#fff7e6', 
+                                border: '1px solid #ffd591',
+                                borderRadius: '4px'
+                            }}>
+                                <strong>Note:</strong> Branch, Line, and Area cannot be changed while editing a customer.
+                            </div>
+                        )}
+
                         <div className="row mb-2">
                             <div className="col-md-4">
-                                <Form.Item
-                                    label="Branch"
-                                    name="branch"
-                                    rules={[
-                                        { required: true, message: 'Please select branch' }
-                                    ]}
-                                >
-                                    <Select
-                                        placeholder="Select Branch"
-                                        size="large"
-                                        showSearch
-                                        allowClear={!params.id}
-                                        onChange={handleBranchChange}
-                                        filterOption={(input, option) =>
-                                            option.children.toLowerCase().includes(input.toLowerCase())
-                                        }
+                                {(isFromLocalStorage && !params.id) || params.id ? (
+                                    <>
+                                        <Form.Item
+                                            label="Branch"
+                                            name="branch"
+                                            rules={[
+                                                { required: true, message: 'Please select branch' }
+                                            ]}
+                                            style={{ display: 'none' }}
+                                        >
+                                            <Input type="hidden" />
+                                        </Form.Item>
+                                        <Form.Item label="Branch">
+                                            <Input
+                                                value={savedBranchName}
+                                                size="large"
+                                                disabled
+                                                style={{ 
+                                                    backgroundColor: '#f5f5f5',
+                                                    color: '#000',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                ) : (
+                                    <Form.Item
+                                        label="Branch"
+                                        name="branch"
+                                        rules={[
+                                            { required: true, message: 'Please select branch' }
+                                        ]}
                                     >
-                                        {branchList.map((branch) => (
-                                            <Option key={branch.id} value={branch.id}>
-                                                {branch.branch_name}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
+                                        <Select
+                                            placeholder="Select Branch"
+                                            size="large"
+                                            showSearch
+                                            allowClear
+                                            onChange={handleBranchChange}
+                                            filterOption={(input, option) =>
+                                                option.children.toLowerCase().includes(input.toLowerCase())
+                                            }
+                                        >
+                                            {branchList.map((branch) => (
+                                                <Option key={branch.id} value={branch.id}>
+                                                    {branch.branch_name}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                )}
                             </div>
 
                             <div className="col-md-4">
-                                <Form.Item
-                                    label="Line"
-                                    name="line"
-                                    rules={[
-                                        { required: true, message: 'Please select line' }
-                                    ]}
-                                >
-                                    <Select
-                                        placeholder="Select Line"
-                                        size="large"
-                                        showSearch
-                                        allowClear={!params.id}
-                                        onChange={handleLineChange}
-                                        filterOption={(input, option) =>
-                                            option.children.toLowerCase().includes(input.toLowerCase())
-                                        }
+                                {(isFromLocalStorage && !params.id) || params.id ? (
+                                    <>
+                                        <Form.Item
+                                            label="Line"
+                                            name="line"
+                                            rules={[
+                                                { required: true, message: 'Please select line' }
+                                            ]}
+                                            style={{ display: 'none' }}
+                                        >
+                                            <Input type="hidden" />
+                                        </Form.Item>
+                                        <Form.Item label="Line">
+                                            <Input
+                                                value={savedLineName}
+                                                size="large"
+                                                disabled
+                                                style={{ 
+                                                    backgroundColor: '#f5f5f5',
+                                                    color: '#000',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                ) : (
+                                    <Form.Item
+                                        label="Line"
+                                        name="line"
+                                        rules={[
+                                            { required: true, message: 'Please select line' }
+                                        ]}
                                     >
-                                        {filteredLineList.map((line) => (
-                                            <Option key={line.id} value={line.id}>
-                                                {line.name}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
+                                        <Select
+                                            placeholder="Select Line"
+                                            size="large"
+                                            showSearch
+                                            allowClear
+                                            onChange={handleLineChange}
+                                            filterOption={(input, option) =>
+                                                option.children.toLowerCase().includes(input.toLowerCase())
+                                            }
+                                        >
+                                            {filteredLineList.map((line) => (
+                                                <Option key={line.id} value={line.id}>
+                                                    {line.name}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                )}
                             </div>
 
                             <div className="col-md-4">
-                                <Form.Item
-                                    label="Area"
-                                    name="area"
-                                    rules={[
-                                        { required: true, message: 'Please select area' }
-                                    ]}
-                                >
-                                    <Select
-                                        placeholder="Select Area"
-                                        size="large"
-                                        showSearch
-                                        allowClear={!params.id}
-                                        filterOption={(input, option) =>
-                                            option.children.toLowerCase().includes(input.toLowerCase())
-                                        }
+                                {(isFromLocalStorage && !params.id) || params.id ? (
+                                    <>
+                                        <Form.Item
+                                            label="Area"
+                                            name="area"
+                                            rules={[
+                                                { required: true, message: 'Please select area' }
+                                            ]}
+                                            style={{ display: 'none' }}
+                                        >
+                                            <Input type="hidden" />
+                                        </Form.Item>
+                                        <Form.Item label="Area">
+                                            <Input
+                                                value={savedAreaName}
+                                                size="large"
+                                                disabled
+                                                style={{ 
+                                                    backgroundColor: '#f5f5f5',
+                                                    color: '#000',
+                                                    cursor: 'not-allowed'
+                                                }}
+                                            />
+                                        </Form.Item>
+                                    </>
+                                ) : (
+                                    <Form.Item
+                                        label="Area"
+                                        name="area"
+                                        rules={[
+                                            { required: true, message: 'Please select area' }
+                                        ]}
                                     >
-                                        {filteredAreaList.map((area) => (
-                                            <Option key={area.id} value={area.id}>
-                                                {area.name}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
+                                        <Select
+                                            placeholder="Select Area"
+                                            size="large"
+                                            showSearch
+                                            allowClear
+                                            filterOption={(input, option) =>
+                                                option.children.toLowerCase().includes(input.toLowerCase())
+                                            }
+                                        >
+                                            {filteredAreaList.map((area) => (
+                                                <Option key={area.id} value={area.id}>
+                                                    {area.name}
+                                                </Option>
+                                            ))}
+                                        </Select>
+                                    </Form.Item>
+                                )}
                             </div>
                         </div>
 
-                        {/* Location Field with Map Icon */}
                         <div className="row mb-2">
                             <div className="col-md-12">
                                 <Form.Item
@@ -722,18 +936,19 @@ const AddCustomer = () => {
                             </div>
                         </div>
 
-                        {/* Hidden latitude and longitude fields */}
                         <Form.Item name="latitude" style={{ display: 'none' }}>
                             <Input type="hidden" />
                         </Form.Item>
                         <Form.Item name="longitude" style={{ display: 'none' }}>
                             <Input type="hidden" />
                         </Form.Item>
+                        <Form.Item name="customer_order" style={{ display: 'none' }}>
+    <Input type="hidden" />
+</Form.Item>
 
                         <Divider style={{ borderTop: "2px solid #d9d9d9" }} />
 
-                        {/* Reference Contacts Section */}
-                       <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
                             Reference Contacts
                         </h3>
 
@@ -741,12 +956,8 @@ const AddCustomer = () => {
                             {(fields, { add, remove }) => (
                                 <>
                                     {fields.map(({ key, name, ...restField }, index) => (
-                                        // The row now holds the form item and the button
                                         <div key={key} className="row mb-3">
-                                            {/* Use col-md-6 to contain both input and button */}
                                             <div className="col-md-6" style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                                                
-                                                {/* Form Item: Takes up most of the space */}
                                                 <Form.Item
                                                     {...restField}
                                                     name={[name, 'reference_number']}
@@ -754,7 +965,6 @@ const AddCustomer = () => {
                                                     rules={[
                                                         { pattern: /^\d{10}$/, message: 'Mobile number must be 10 digits' }
                                                     ]}
-                                                    // Critical style to ensure it aligns with the button
                                                     style={{ flexGrow: 1, marginBottom: 0 }} 
                                                 >
                                                     <Input
@@ -762,26 +972,21 @@ const AddCustomer = () => {
                                                         placeholder="10 digit mobile number"
                                                         size="large"
                                                         maxLength={10}
-                                                        // SUFFIX REMOVED: The button is now outside the Input
                                                     />
                                                 </Form.Item>
 
-                                                {/* Minus Button: Placed outside the input, aligned to the bottom */}
                                                 {fields.length > 1 && (
                                                     <Button
                                                         type="primary"
-                                                        danger // Use danger prop for red color
-                                                        shape="circle" // Makes it rounded
+                                                        danger
+                                                        shape="circle"
                                                         icon={<MinusOutlined />}
                                                         onClick={() => remove(name)}
-                                                        
                                                         style={{
                                                             width: 35, 
                                                             height: 35, 
-                                                           
-                                                            backgroundColor: 'red', // Standard red/danger color
+                                                            backgroundColor: 'red',
                                                             borderColor: 'red',
-                                                          
                                                         }}
                                                     />
                                                 )}
