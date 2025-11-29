@@ -14,13 +14,13 @@ import { Menu } from "antd";
 import "../Common/antd-menu-custom.css";
 
 const orgMenuItems = [
-  { key: "/view", label: "Organization" },
+  // { key: "/view", label: "Organization" },
   { key: "/branch/list", label: "Branch" },
   { key: "/line", label: "Line" },
   { key: "/area", label: "Area" },
-  { key: "/expense/list", label: "Expense Type" },
+  // { key: "/expense/list", label: "Expense Type" },
   { key: "/investment", label: "Investments" },
-  { key: "/expense-transaction", label: "Expense Transactions" },
+  // { key: "/expense-transaction", label: "Expense Transactions" },
 ];
 
 const userMenuItems = [
@@ -88,11 +88,11 @@ const SidebarContent = (props) => {
 
   // Menu items configuration for Ant Design Menu
   const menuItems = [
-    {
-      key: '/home',
-      icon: <HomeOutlined />,
-      label: 'Home',
-    },
+    // {
+    //   key: '/home',
+    //   icon: <HomeOutlined />,
+    //   label: 'Home',
+    // },
     {
       key: 'settings',
       icon: <SettingOutlined />,
@@ -102,28 +102,33 @@ const SidebarContent = (props) => {
         label: item.label,
       })),
     },
-    {
-      key: 'users',
-      icon: <UserOutlined />,
-      label: 'Users',
-      children: userMenuItems.map(item => ({
-        key: item.key,
-        label: item.label,
-      })),
-    },
-    {
-      key: 'loan',
-      icon: <UserOutlined />,
-      label: 'Loan',
-      children: loanMenuItems.map(item => ({
-        key: item.key,
-        label: item.label,
-      })),
-    },
+    // {
+    //   key: 'users',
+    //   icon: <UserOutlined />,
+    //   label: 'Users',
+    //   children: userMenuItems.map(item => ({
+    //     key: item.key,
+    //     label: item.label,
+    //   })),
+    // },
+    // {
+    //   key: 'loan',
+    //   icon: <UserOutlined />,
+    //   label: 'Loan',
+    //   children: loanMenuItems.map(item => ({
+    //     key: item.key,
+    //     label: item.label,
+    //   })),
+    // },
     {
       key: '/reset-password',
       icon: <LockOutlined />,
       label: 'Reset Password',
+    },
+     {
+      key: '/view-customer',
+      icon: <LockOutlined />,
+      label: 'Customer',
     },
   ];
 
