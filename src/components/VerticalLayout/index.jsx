@@ -45,7 +45,7 @@ const VerticalLayout = (props) => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
   const menuItems = useMemo(() => [
-  // { key: '/home', icon: <HomeOutlined />, label: 'Home' },
+  { key: '/home', icon: <HomeOutlined />, label: 'Home' },
   {
     key: 'settings',
     icon: <SettingOutlined />,
@@ -77,6 +77,7 @@ const VerticalLayout = (props) => {
   //   ],
   // },
    { key: '/reset-password', icon: <LockOutlined />, label: 'Reset Password' },
+      { key: '/view-customer', icon: <LockOutlined />, label: 'Customer' },
 ], []);
 
   // const menuItems = [
