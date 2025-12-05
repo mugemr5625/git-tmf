@@ -14,13 +14,13 @@ import { Menu } from "antd";
 import "../Common/antd-menu-custom.css";
 
 const orgMenuItems = [
-  { key: "/view", label: "Organization" },
+  // { key: "/view", label: "Organization" },
   { key: "/branch/list", label: "Branch" },
   { key: "/line", label: "Line" },
   { key: "/area", label: "Area" },
-  { key: "/expense/list", label: "Expense Type" },
+  // { key: "/expense/list", label: "Expense Type" },
   { key: "/investment", label: "Investments" },
-  { key: "/expense-transaction", label: "Expense Transactions" },
+  // { key: "/expense-transaction", label: "Expense Transactions" },
   { key: "/user/list", label: "All Users" },
 ];
 
@@ -28,9 +28,9 @@ const orgMenuItems = [
 //   { key: "/user/list", label: "All Users" },
 // ];
 
-const loanMenuItems = [
-  { key: "/disburse-loan", label: "Loan Disbursement" },
-];
+// const loanMenuItems = [
+//   { key: "/disburse-loan", label: "Loan Disbursement" },
+// ];
 
 const SidebarContent = (props) => {
   const location = useLocation();
@@ -89,11 +89,11 @@ const SidebarContent = (props) => {
 
   // Menu items configuration for Ant Design Menu
   const menuItems = [
-    {
-      key: '/home',
-      icon: <HomeOutlined />,
-      label: 'Home',
-    },
+    // {
+    //   key: '/home',
+    //   icon: <HomeOutlined />,
+    //   label: 'Home',
+    // },
     {
       key: 'settings',
       icon: <SettingOutlined />,
@@ -112,15 +112,15 @@ const SidebarContent = (props) => {
     //     label: item.label,
     //   })),
     // },
-    {
-      key: 'loan',
-      icon: <UserOutlined />,
-      label: 'Loan',
-      children: loanMenuItems.map(item => ({
-        key: item.key,
-        label: item.label,
-      })),
-    },
+    // {
+    //   key: 'loan',
+    //   icon: <UserOutlined />,
+    //   label: 'Loan',
+    //   children: loanMenuItems.map(item => ({
+    //     key: item.key,
+    //     label: item.label,
+    //   })),
+    // },
     {
       key: '/reset-password',
       icon: <LockOutlined />,
