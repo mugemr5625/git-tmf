@@ -51,13 +51,13 @@ const VerticalLayout = (props) => {
     icon: <SettingOutlined />,
     label: 'Settings',
     children: [
-      { key: '/view', icon: <BankOutlined />, label: 'Organization' },
+      // { key: '/view', icon: <BankOutlined />, label: 'Organization' },
       { key: '/branch/list', icon: <BankOutlined />, label: 'Branch' },
       { key: '/line', icon: <LineChartOutlined />, label: 'Line' },
       { key: '/area', icon: <EnvironmentOutlined />, label: 'Area' },
-      { key: '/expense/list', icon: <DollarOutlined />, label: 'Expense Type' },
+      // { key: '/expense/list', icon: <DollarOutlined />, label: 'Expense Type' },
       { key: '/investment', icon: <DollarOutlined />, label: 'Investments' },
-      { key: '/expense-transaction', icon: <FileOutlined />, label: 'Expense Transactions' },
+      // { key: '/expense-transaction', icon: <FileOutlined />, label: 'Expense Transactions' },
        { key: '/user/list', icon: <UserOutlined />, label: 'Users' },
     ],
   },
@@ -69,14 +69,14 @@ const VerticalLayout = (props) => {
   //     { key: '/user/list', icon: <UserOutlined />, label: 'All Users' },
   //   ],
   // },
-  {
-    key: 'loan',
-    icon: <DollarOutlined />,
-    label: 'Loan',
-    children: [
-      { key: '/disburse-loan', icon: <DollarOutlined />, label: 'Loan Disbursement' },
-    ],
-  },
+  // {
+  //   key: 'loan',
+  //   icon: <DollarOutlined />,
+  //   label: 'Loan',
+  //   children: [
+  //     { key: '/disburse-loan', icon: <DollarOutlined />, label: 'Loan Disbursement' },
+  //   ],
+  // },
    { key: '/reset-password', icon: <LockOutlined />, label: 'Reset Password' },
       { key: '/view-customer', icon: <LockOutlined />, label: 'Customer' },
 ], []);
